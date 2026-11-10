@@ -38,6 +38,7 @@
         busy: false,
         flags: { checkmode: false, headershow: false, crushmode: false, randommode: false },
         lastPublish: null,
+        preview: { on: false, index: 0, showAnswers: false },
     };
 
     /* ------------------------------ Настройки ------------------------------ */
@@ -100,6 +101,7 @@
         if (!opts || !opts.force) {
             if (state.dirty && !confirm('В текущем задании есть изменения. Переключить тип без сохранения?')) return;
         }
+        setPreview(false);
 
         state.typeId = typeId;
         state.adapter = adapter;
@@ -150,6 +152,63 @@
         els.statusPrompt.textContent = 'Режим: ' + (prompt ? prompt.name : '—');
     }
 
+    /* ------------------------------- Просмотр ------------------------------- */
+
+    function setPreview(on) {
+        state.preview.on = !!on;
+        if (els.previewPane) els.previewPane.classList.toggle('hidden', !on);
+        if (els.typeEditor) els.typeEditor.classList.toggle('hidden', on);
+        if (els.btnPreview) {
+            els.btnPreview.classList.toggle('active', on);
+            els.btnPreview.textContent = on ? '✎ Редактор' : '👁 Просмотр';
+        }
+        if (!on) return;
+        state.preview.index = state.editor && state.editor.getIndex ? state.editor.getIndex() : 0;
+        state.preview.showAnswers = els.pvShowAnswers ? els.pvShowAnswers.checked : false;
+        renderPreview();
+    }
+
+    function previewStep(delta) {
+        if (!state.preview.on) return;
+        const count = state.adapter.count ? state.adapter.count(state.editor.getModel()) : 1;
+        state.preview.index = Math.max(0, Math.min(state.preview.index + delta, count - 1));
+        renderPreview();
+    }
+
+    function renderPreview() {
+        if (!state.preview.on || !state.adapter || !state.editor) return;
+        const model = state.editor.getModel();
+        const count = Math.max(1, state.adapter.count ? state.adapter.count(model) : 1);
+        const index = Math.max(0, Math.min(state.preview.index, count - 1));
+        state.preview.index = index;
+
+        els.pvStage.innerHTML = state.adapter.preview
+            ? state.adapter.preview(model, index, { showAnswers: state.preview.showAnswers })
+            : '<p class="hint">Для этого типа просмотр не реализован.</p>';
+        els.pvCounter.textContent = (index + 1) + ' / ' + count;
+        els.pvLabel.textContent = state.adapter.itemLabel ? state.adapter.itemLabel(index) : 'так увидит студент';
+        els.pvPrev.disabled = index <= 0;
+        els.pvNext.disabled = index >= count - 1;
+
+        // KaTeX — для формул с data-latex, затем MathJax — для HTML с \\( \\)
+        els.pvStage.querySelectorAll('[data-latex]').forEach(node => {
+            const latex = node.getAttribute('data-latex') || '';
+            if (window.katex && typeof window.katex.render === 'function') {
+                try {
+                    window.katex.render(latex, node, {
+                        throwOnError: false,
+                        displayMode: node.getAttribute('data-display') !== 'inline',
+                    });
+                    return;
+                } catch (e) { /* покажем текстом */ }
+            }
+            node.textContent = latex;
+        });
+        if (window.MathJax && typeof window.MathJax.typesetPromise === 'function') {
+            window.MathJax.typesetPromise([els.pvStage]).catch(() => {});
+        }
+    }
+
     /* ------------------------------- XML-панель ------------------------------- */
 
     function setXml(text, force) {
@@ -169,6 +228,7 @@
         updateHeader();
         updateCounts();
         refreshIssues();
+        if (state.preview.on) renderPreview();
     }
 
     function applyXml() {
@@ -193,6 +253,7 @@
         updateCounts();
         refreshIssues();
         toast('XML применён к редактору');
+        if (state.preview.on) renderPreview();
         return true;
     }
 
@@ -505,6 +566,7 @@
             updateCounts();
             refreshIssues();
             updateSaveInfo();
+            if (state.preview.on) { state.preview.index = 0; renderPreview(); }
             setStatus('Загружено: ' + (fileName || sourceLabel || 'XML'));
         } catch (e) {
             toast('Ошибка разбора: ' + e.message, true);
@@ -549,6 +611,7 @@
         updateCounts();
         refreshIssues();
         updatePublishInfo();
+        if (state.preview.on) { state.preview.index = 0; renderPreview(); }
         setStatus('Новое задание: ' + state.adapter.label);
     }
 
@@ -616,6 +679,14 @@
         els.btnApply.addEventListener('click', applyXml);
         els.btnPrompts.addEventListener('click', () => state.prompts.openDialog());
         els.btnAi.addEventListener('click', askDeepSeek);
+        els.btnPreview.addEventListener('click', () => setPreview(!state.preview.on));
+        els.pvClose.addEventListener('click', () => setPreview(false));
+        els.pvPrev.addEventListener('click', () => previewStep(-1));
+        els.pvNext.addEventListener('click', () => previewStep(1));
+        els.pvShowAnswers.addEventListener('change', () => {
+            state.preview.showAnswers = els.pvShowAnswers.checked;
+            renderPreview();
+        });
         els.btnPublish.addEventListener('click', openPublish);
         els.btnSettings.addEventListener('click', openSettings);
 
@@ -655,7 +726,21 @@
             });
         });
         document.addEventListener('keydown', event => {
-            if (event.key === 'Escape') closeAllModals();
+            if (event.key === 'Escape') {
+                const open = document.querySelector('.modal.show');
+                if (open) { closeModal(open); return; }
+                if (state.preview.on) { setPreview(false); return; }
+                closeAllModals();
+                return;
+            }
+            const target = event.target;
+            const inField = target && typeof target.closest === 'function'
+                ? target.closest('input, textarea, select')
+                : null;
+            if (state.preview.on && !inField) {
+                if (event.key === 'ArrowLeft') { event.preventDefault(); previewStep(-1); }
+                if (event.key === 'ArrowRight') { event.preventDefault(); previewStep(1); }
+            }
         });
 
         els.btnSaveSettings.addEventListener('click', saveSettingsFromModal);
@@ -712,6 +797,7 @@
             'autosaveToggle', 'toast', 'resizer',
             'settingsModal', 'setGh', 'setGv', 'setServer', 'setDs', 'setEndpoint', 'setFolder',
             'setAutosave', 'btnSaveSettings',
+            'btnPreview', 'previewPane', 'pvPrev', 'pvNext', 'pvCounter', 'pvLabel', 'pvShowAnswers', 'pvClose', 'pvStage',
             'publishModal', 'pubDescription', 'pubGist', 'pubGitverse', 'pubServer', 'pubStatus',
             'taskUrl', 'btnCopyTask', 'openTask',
             'flCheck', 'flHeader', 'flCrush', 'flRandom',
