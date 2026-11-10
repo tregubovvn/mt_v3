@@ -122,8 +122,11 @@ node tests/formats.test.js
 ## Важно про деплой
 
 Workflow `.github/workflows/main.yml` копирует репозиторий на сервер. В форке
-mt_v2 путь был `/var/www/html/mt_v2` — **исправлено на `/var/www/html/mt_v3`**,
-иначе публикация mt_v3 перезаписала бы сайт mt_v2.
+mt_v2 путь был `/var/www/html/mt_v2`; для mt_v3 он должен быть
+`/var/www/html/mt_v3` — иначе деплой перезапишет сайт mt_v2.
+
+В этом PR файл workflow не менялся: у токена публикации нет scope `workflow`.
+Поправьте `target` вручную до первого мержа/деплоя.
 
 ## Наследие
 
