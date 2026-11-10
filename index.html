@@ -27,23 +27,13 @@
         <button type="button" class="btn btn-primary" id="btnSave" title="Сохранить XML в файл">💾 Сохранить</button>
         <button type="button" class="btn" id="btnCopyXml" title="Скопировать XML">📋 XML</button>
         <button type="button" class="btn" id="btnPrompts" title="Режимы и промпты">📝 Режимы</button>
-        <button type="button" class="btn" id="btnAi" title="Отправить промпт и XML в DeepSeek">✨ DeepSeek</button>
+        <button type="button" class="btn btn-ai" id="btnAi" title="Отправить промпт и XML в DeepSeek">✨ DeepSeek</button>
         <button type="button" class="btn btn-publish" id="btnPublish" title="Gist, GitVerse или свой сервер">🚀 Публикация</button>
-        <button type="button" class="btn btn-icon" id="btnSettings" title="Настройки и токены">⚙</button>
+        <button type="button" class="btn btn-icon btn-settings" id="btnSettings" title="Настройки и токены">⚙</button>
     </div>
 </header>
 
 <main class="workspace">
-    <section class="pane editor-pane">
-        <div class="pane-head">
-            <span class="pane-title" id="editorTitle">Редактор</span>
-            <span class="meta" id="editorMeta"></span>
-        </div>
-        <div class="type-editor" id="typeEditor"></div>
-    </section>
-
-    <div class="resizer" id="resizer" title="Перетащите, чтобы изменить ширину панелей"></div>
-
     <section class="pane xml-pane">
         <div class="pane-head">
             <span class="pane-title">XML</span>
@@ -52,6 +42,16 @@
         </div>
         <textarea id="xmlEditor" class="xml-editor" spellcheck="false" aria-label="XML задания"></textarea>
         <div class="issues" id="issues" aria-live="polite"></div>
+    </section>
+
+    <div class="resizer" id="resizer" title="Перетащите, чтобы изменить ширину панелей"></div>
+
+    <section class="pane editor-pane">
+        <div class="pane-head">
+            <span class="pane-title" id="editorTitle">Редактор</span>
+            <span class="meta" id="editorMeta"></span>
+        </div>
+        <div class="type-editor" id="typeEditor"></div>
     </section>
 </main>
 
