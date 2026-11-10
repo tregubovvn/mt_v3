@@ -21,4 +21,4 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: 22 # Укажите ваш порт (22 или тот, что нашли в sshd_config)
           source: "." # Копируем всё содержимое репозитория
-          target: "/var/www/html/mt_v2" # Путь к папке сайта на вашем сервере
+          target: "/var/www/html/mt_v3" # Путь к папке сайта на вашем сервере
