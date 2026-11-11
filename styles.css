@@ -160,6 +160,10 @@ body.resizing { cursor: col-resize; user-select: none; }
     font-size: 0.85rem; font-weight: 600;
 }
 .pane-title { font-size: 0.85rem; font-weight: 600; }
+#editorTitle {
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    max-width: min(58%, 620px);
+}
 .meta, .hint { color: var(--fg-muted); font-size: 0.75rem; }
 .pane-head .meta { margin-left: auto; font-weight: 400; }
 .xml-state { margin-left: auto; color: var(--fg-muted); font-size: 0.72rem; font-weight: 400; }
@@ -174,6 +178,7 @@ body.resizing { cursor: col-resize; user-select: none; }
     font-size: 13px; line-height: 1.5;
     tab-size: 4;
 }
+.xml-editor::placeholder { color: var(--fg-muted); opacity: 0.8; }
 .issues {
     flex-shrink: 0; max-height: 92px; overflow: auto;
     display: flex; flex-wrap: wrap; gap: 6px;
@@ -288,6 +293,15 @@ body.resizing { cursor: col-resize; user-select: none; }
 
 .ed-toolbar { display: flex; flex-wrap: wrap; gap: 0.4rem; align-items: center; margin-bottom: 0.75rem; }
 .ed-toolbar .hint { margin-left: auto; }
+
+.empty-state {
+    padding: 1.5rem;
+    border: 1px dashed var(--border);
+    border-radius: var(--radius);
+    color: var(--fg-muted);
+    text-align: center;
+    background: rgba(15, 23, 42, 0.35);
+}
 
 /* ------------------------------- Карточки вопросов ------------------------------- */
 
