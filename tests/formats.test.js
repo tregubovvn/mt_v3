@@ -156,6 +156,18 @@ test('ft: простой и расширенный формат, round-trip', ()
     assert.ok(xml.includes('<latex>'));
 });
 
+test('пустые задания: blank → build → parse', () => {
+    for (const id of ['rt', 'mt', 'ft']) {
+        const type = types.get(id);
+        const model = type.blank();
+        const xml = type.build(model);
+        const back = type.parse(xml);
+        if (id === 'rt') eq(back.fragments.length, 0);
+        if (id === 'mt') eq(back.questions.length, 0);
+        if (id === 'ft') eq(back.formulas.length, 0);
+    }
+});
+
 test('ft: валидация и фрагменты', () => {
     const type = types.get('ft');
     const model = type.parse(type.sample());

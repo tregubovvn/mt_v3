@@ -108,7 +108,8 @@
         state.files = filesFor(typeId);
         state.prompts = promptsFor(typeId);
 
-        const model = adapter.parse(adapter.sample());
+        const blank = !!(opts && opts.blank);
+        const model = blank && adapter.blank ? adapter.blank() : adapter.parse(adapter.sample());
         els.typeEditor.innerHTML = '';
         state.editor = adapter.createEditor(els.typeEditor, {
             changed: onModelChanged,
@@ -120,7 +121,7 @@
         state.dirty = false;
         state.xmlDirty = false;
         state.lastPublish = state.files.getLastPublish();
-        setXml(adapter.build(state.editor.getModel()), true);
+        setXml(blank ? '' : adapter.build(state.editor.getModel()), true);
         state.files.setContent(els.xmlEditor.value, { silent: true });
 
         renderTypeTabs();
@@ -137,8 +138,11 @@
     }
 
     function updateHeader() {
-        if (!state.adapter) return;
-        els.editorTitle.textContent = state.adapter.label;
+        if (!state.adapter || !state.editor) return;
+        const mode = state.prompts && state.prompts.getActivePrompt ? state.prompts.getActivePrompt() : null;
+        const title = state.adapter.label + (mode && mode.name ? ' — ' + mode.name : '');
+        els.editorTitle.textContent = title;
+        els.editorTitle.title = title;
         els.editorMeta.textContent = state.adapter.stats(state.editor.getModel());
     }
 
@@ -150,6 +154,7 @@
     function updatePromptLabel() {
         const prompt = state.prompts && state.prompts.getActivePrompt();
         els.statusPrompt.textContent = 'Режим: ' + (prompt ? prompt.name : '—');
+        updateHeader();
     }
 
     /* ------------------------------- Просмотр ------------------------------- */
@@ -598,13 +603,13 @@
     function newTask() {
         if (state.dirty && !confirm('Создать новое задание без сохранения текущего?')) return;
         state.files.resetPublishState();
-        const model = state.adapter.parse(state.adapter.sample());
+        const model = state.adapter.blank ? state.adapter.blank() : state.adapter.parse(state.adapter.sample());
         state.editor.setModel(model);
         state.editor.render();
         state.dirty = false;
         state.xmlDirty = false;
-        setXml(state.adapter.build(model), true);
-        state.files.setContent(els.xmlEditor.value, { silent: true });
+        setXml('', true);
+        state.files.setContent('', { silent: true });
         els.btnApply.disabled = true;
         els.xmlState.textContent = 'синхронизировано';
         updateHeader();
@@ -613,6 +618,25 @@
         updatePublishInfo();
         if (state.preview.on) { state.preview.index = 0; renderPreview(); }
         setStatus('Новое задание: ' + state.adapter.label);
+    }
+
+    function loadSample() {
+        if (state.dirty && !confirm('Заменить текущее задание примером XML?')) return;
+        const model = state.adapter.parse(state.adapter.sample());
+        state.editor.setModel(model);
+        state.editor.render();
+        const xml = state.adapter.build(state.editor.getModel());
+        setXml(xml, true);
+        state.files.setContent(xml);
+        state.dirty = true;
+        state.xmlDirty = false;
+        els.btnApply.disabled = true;
+        els.xmlState.textContent = 'синхронизировано';
+        updateHeader();
+        updateCounts();
+        refreshIssues();
+        if (state.preview.on) { state.preview.index = 0; renderPreview(); }
+        setStatus('Загружен пример: ' + state.adapter.label);
     }
 
     /* ------------------------------ Настройки ------------------------------ */
@@ -676,6 +700,7 @@
             }
         });
         els.btnCopyXml.addEventListener('click', () => copyText(els.xmlEditor.value));
+        els.btnSample.addEventListener('click', loadSample);
         els.btnApply.addEventListener('click', applyXml);
         els.btnPrompts.addEventListener('click', () => state.prompts.openDialog());
         els.btnAi.addEventListener('click', askDeepSeek);
@@ -792,7 +817,7 @@
             'typeTabs', 'typeEditor', 'editorTitle', 'editorMeta',
             'xmlEditor', 'btnApply', 'xmlState', 'issues',
             'btnNew', 'btnOpen', 'btnLoadGist', 'btnSave', 'btnCopyXml',
-            'btnPrompts', 'btnAi', 'btnPublish', 'btnSettings',
+            'btnPrompts', 'btnAi', 'btnPublish', 'btnSettings', 'btnSample',
             'statusText', 'statusCounts', 'statusSave', 'statusPrompt', 'statusPublish',
             'autosaveToggle', 'toast', 'resizer',
             'settingsModal', 'setGh', 'setGv', 'setServer', 'setDs', 'setEndpoint', 'setFolder',
@@ -815,6 +840,6 @@
 
         const savedType = localStorage.getItem(LS.type);
         const startType = window.MtV3Types.get(savedType) ? savedType : 'rt';
-        switchType(startType, { force: true });
+        switchType(startType, { force: true, blank: true });
     });
 })();

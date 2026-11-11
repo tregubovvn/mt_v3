@@ -24,8 +24,7 @@
         return { text: '', correct: !!correct, fraction: correct ? 100 : 0, tolerance: 0 };
     }
 
-    function blankQuestion(type) {
-        const q = {
+    function blankQuestion(type) {        const q = {
             type: type || 'multichoice',
             name: 'Новый вопрос',
             text: '',
@@ -42,6 +41,10 @@
         if (q.type === 'shortanswer') q.answers = [blankAnswer(true)];
         if (q.type === 'numerical') q.answers = [blankAnswer(true)];
         return q;
+    }
+
+    function blank() {
+        return { questions: [] };
     }
 
     /* ------------------------------ Пример ------------------------------ */
@@ -145,9 +148,6 @@
             questions.push(q);
         });
 
-        if (!questions.length) {
-            throw new Error('нет поддерживаемых вопросов (multichoice / truefalse / shortanswer / numerical / description)');
-        }
         return { questions };
     }
 
@@ -346,9 +346,14 @@
         }
 
         function render() {
-            if (!model.questions.length) model.questions.push(blankQuestion('multichoice'));
-            if (current >= model.questions.length) current = model.questions.length - 1;
-            if (current < 0) current = 0;
+            if (!model.questions.length) {
+                current = -1;
+                els.tabs.innerHTML = '';
+                els.info.textContent = 'Вопросов нет';
+                els.body.innerHTML = '<div class="empty-state">Вопросов пока нет. Выберите тип и нажмите «＋ Вопрос».</div>';
+                return;
+            }
+            if (current < 0 || current >= model.questions.length) current = 0;
 
             els.tabs.innerHTML = model.questions.map((item, i) => {
                 const bad = item.type === 'multichoice'
@@ -392,6 +397,7 @@
         container.addEventListener('input', event => {
             const t = event.target;
             const item = q();
+            if (!item) return;
             if (t.matches('[data-qf]')) {
                 const field = t.dataset.qf;
                 if (field === 'type') return;
@@ -423,8 +429,9 @@
 
         container.addEventListener('change', event => {
             const t = event.target;
+            const item = q();
+            if (!item) return;
             if (t.matches('[data-qf="type"]')) {
-                const item = q();
                 if (item.type === t.value) return;
                 const replacement = blankQuestion(t.value);
                 replacement.name = item.name;
@@ -437,12 +444,11 @@
             if (t.matches('[data-af="correct"]')) {
                 const row = t.closest('[data-ai]');
                 if (!row) return;
-                setCorrect(q(), +row.dataset.ai, t.checked);
+                setCorrect(item, +row.dataset.ai, t.checked);
                 ctx.changed();
                 return;
             }
             if (t.matches('[data-qf="single"]')) {
-                const item = q();
                 item.single = t.checked;
                 if (item.single) {
                     let seen = false;
@@ -471,17 +477,18 @@
                 current = model.questions.length - 1;
                 render(); ctx.changed();
             } else if (act === 'del-question') {
-                if (model.questions.length <= 1) { ctx.toast('Нельзя удалить последний вопрос', true); return; }
                 if (!confirm('Удалить вопрос ' + (current + 1) + '?')) return;
                 model.questions.splice(current, 1);
-                current = Math.max(0, current - 1);
+                current = Math.min(current, model.questions.length - 1);
                 render(); ctx.changed();
             } else if (act === 'add-answer') {
+                if (!item) return;
                 item.answers.push(blankAnswer(false));
                 render(); ctx.changed();
             } else if (act === 'del-answer') {
+                if (!item) return;
                 const index = +action.dataset.ai;
-                if ((item.answers || []).length <= 1) { ctx.toast('Нужен хотя бы один ответ', true); return; }
+                if (!(item.answers || [])[index]) return;
                 const wasCorrect = item.answers[index].correct;
                 item.answers.splice(index, 1);
                 if (wasCorrect && item.answers[0]) {
@@ -497,9 +504,8 @@
             getModel: () => model,
             getIndex: () => current,
             setModel(next) {
-                model = next && next.questions ? next : { questions: [blankQuestion('multichoice')] };
-                if (!model.questions.length) model.questions.push(blankQuestion('multichoice'));
-                current = 0;
+                model = next && next.questions ? next : { questions: [] };
+                current = model.questions.length ? 0 : -1;
             },
         };
     }
@@ -574,7 +580,7 @@
         promptPreset: 'mt_v2',
         rootTag: 'quiz',
         matches: root => root === 'quiz',
-        sample, parse, build, title, stats, validate, createEditor,
+        sample, blank, parse, build, title, stats, validate, createEditor,
         count, itemLabel, preview,
     });
 })();

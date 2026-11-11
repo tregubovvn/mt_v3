@@ -20,6 +20,10 @@
         return { name: '', latex: '', symbols: [] };
     }
 
+    function blank() {
+        return { name: '', meta: emptyMeta(), formulas: [] };
+    }
+
     /* ------------------------------ Пример ------------------------------ */
 
     function sample() {
@@ -61,7 +65,6 @@
             };
         });
 
-        if (!formulas.length) throw new Error('в файле нет ни одной <formula>');
         return {
             name: X.attr(root, 'name'),
             meta: metaNode ? {
@@ -216,14 +219,19 @@
         }
 
         function render() {
-            if (!model.formulas.length) model.formulas.push(blankFormula());
-            if (current >= model.formulas.length) current = model.formulas.length - 1;
-            if (current < 0) current = 0;
-
             if (document.activeElement !== els.name) els.name.value = model.name || '';
             els.meta.forEach(input => {
                 if (document.activeElement !== input) input.value = (model.meta || emptyMeta())[input.dataset.meta] || '';
             });
+
+            if (!model.formulas.length) {
+                current = -1;
+                els.tabs.innerHTML = '';
+                els.info.textContent = 'Формул нет';
+                els.body.innerHTML = '<div class="empty-state">Формул пока нет. Нажмите «＋ Формула», чтобы добавить первую.</div>';
+                return;
+            }
+            if (current < 0 || current >= model.formulas.length) current = 0;
 
             els.tabs.innerHTML = model.formulas.map((f, i) => {
                 const bad = !(f.name || '').trim() || !(f.latex || '').trim();
@@ -266,14 +274,18 @@
                 return;
             }
             if (t.matches('[data-ff]')) {
-                formula()[t.dataset.ff] = t.value;
+                const item = formula();
+                if (!item) return;
+                item[t.dataset.ff] = t.value;
                 if (t.dataset.ff === 'latex') renderPreview();
                 ctx.changed();
                 return;
             }
             if (t.matches('[data-sf]')) {
+                const item = formula();
+                if (!item) return;
                 const row = t.closest('[data-si]');
-                const symbol = formula().symbols[+row.dataset.si];
+                const symbol = item.symbols[+row.dataset.si];
                 if (symbol) {
                     symbol[t.dataset.sf] = t.value;
                     ctx.changed();
@@ -295,15 +307,16 @@
                 current = model.formulas.length - 1;
                 render(); ctx.changed();
             } else if (act === 'del-formula') {
-                if (model.formulas.length <= 1) { ctx.toast('Нельзя удалить последнюю формулу', true); return; }
                 if (!confirm('Удалить формулу ' + (current + 1) + '?')) return;
                 model.formulas.splice(current, 1);
-                current = Math.max(0, current - 1);
+                current = Math.min(current, model.formulas.length - 1);
                 render(); ctx.changed();
             } else if (act === 'add-symbol') {
+                if (!item) return;
                 item.symbols.push({ char: '', name: '' });
                 render(); ctx.changed();
             } else if (act === 'del-symbol') {
+                if (!item) return;
                 item.symbols.splice(+action.dataset.si, 1);
                 render(); ctx.changed();
             }
@@ -314,9 +327,8 @@
             getModel: () => model,
             getIndex: () => current,
             setModel(next) {
-                model = next && next.formulas ? next : { name: '', meta: emptyMeta(), formulas: [blankFormula()] };
-                if (!model.formulas.length) model.formulas.push(blankFormula());
-                current = 0;
+                model = next && next.formulas ? next : { name: '', meta: emptyMeta(), formulas: [] };
+                current = model.formulas.length ? 0 : -1;
             },
         };
     }
@@ -394,7 +406,7 @@
         ],
         rootTag: 'formulas',
         matches: root => root === 'formulas',
-        sample, parse, build, title, stats, validate, createEditor,
+        sample, blank, parse, build, title, stats, validate, createEditor,
         count, itemLabel, preview,
     });
 })();

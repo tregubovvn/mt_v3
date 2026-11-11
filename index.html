@@ -18,7 +18,7 @@
         };
     </script>
     <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js"></script>
-    <link rel="stylesheet" href="styles.css?v=4">
+    <link rel="stylesheet" href="styles.css?v=5">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
 </head>
 <body>
@@ -39,7 +39,6 @@
         <button type="button" class="btn" id="btnOpen" title="Открыть XML-файл с диска">📂 Открыть</button>
         <button type="button" class="btn" id="btnLoadGist" title="Загрузить XML из GitHub Gist">☁ Из Gist</button>
         <button type="button" class="btn btn-primary" id="btnSave" title="Сохранить XML в файл">💾 Сохранить</button>
-        <button type="button" class="btn" id="btnCopyXml" title="Скопировать XML">📋 XML</button>
         <button type="button" class="btn" id="btnPrompts" title="Режимы и промпты">📝 Режимы</button>
         <button type="button" class="btn btn-publish" id="btnPublish" title="Gist, GitVerse или свой сервер">🚀 Публикация</button>
         <button type="button" class="btn btn-icon btn-settings" id="btnSettings" title="Настройки и токены">⚙</button>
@@ -51,10 +50,13 @@
         <div class="pane-head">
             <span class="pane-title">XML</span>
             <span class="xml-state" id="xmlState">синхронизировано</span>
+            <button type="button" class="btn btn-sm" id="btnSample" title="Загрузить пример XML для выбранного типа">Пример</button>
+            <button type="button" class="btn btn-sm" id="btnCopyXml" title="Скопировать XML">📋 Копировать</button>
             <button type="button" class="btn btn-sm btn-ai" id="btnAi" title="Отправить промпт и XML в DeepSeek">✨ DeepSeek</button>
             <button type="button" class="btn btn-sm" id="btnApply" disabled title="Разобрать XML и применить к редактору (Ctrl+Enter)">Применить ▶</button>
         </div>
-        <textarea id="xmlEditor" class="xml-editor" spellcheck="false" aria-label="XML задания"></textarea>
+        <textarea id="xmlEditor" class="xml-editor" spellcheck="false" aria-label="XML задания"
+            placeholder="Здесь будет XML задания. Вставьте или напишите задание — этот текст уйдёт в DeepSeek. Можно заполнить форму справа."></textarea>
         <div class="issues" id="issues" aria-live="polite"></div>
     </section>
 
@@ -204,11 +206,11 @@
 <script src="vendor/prompts-api.js"></script>
 <script src="vendor/latex-fragments.js"></script>
 <script src="vendor/xml.js"></script>
-<script src="editors/registry.js?v=3"></script>
-<script src="editors/rt.js?v=3"></script>
-<script src="editors/mt.js?v=3"></script>
-<script src="editors/ft.js?v=3"></script>
+<script src="editors/registry.js?v=4"></script>
+<script src="editors/rt.js?v=4"></script>
+<script src="editors/mt.js?v=4"></script>
+<script src="editors/ft.js?v=4"></script>
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
-<script src="app.js?v=3"></script>
+<script src="app.js?v=4"></script>
 </body>
 </html>

@@ -35,6 +35,10 @@
         return { author: '', university: '', discipline: '', audience: '' };
     }
 
+    function blank() {
+        return { topicName: '', meta: emptyMeta(), fragments: [] };
+    }
+
     /* ------------------------------ Пример ------------------------------ */
 
     function sample() {
@@ -108,7 +112,6 @@
             });
         });
 
-        if (!model.fragments.length) throw new Error('в файле нет ни одного <fragment>');
         return model;
     }
 
@@ -231,14 +234,19 @@
         function words(text) { return String(text || '').trim().split(/\s+/).filter(Boolean).length; }
 
         function render() {
-            if (!model.fragments.length) model.fragments.push(blankFragment());
-            if (current >= model.fragments.length) current = model.fragments.length - 1;
-            if (current < 0) current = 0;
-
             if (document.activeElement !== els.topic) els.topic.value = model.topicName || '';
             els.meta.forEach(input => {
                 if (document.activeElement !== input) input.value = (model.meta || emptyMeta())[input.dataset.meta] || '';
             });
+
+            if (!model.fragments.length) {
+                current = -1;
+                els.tabs.innerHTML = '';
+                els.fragInfo.textContent = 'Фрагментов нет';
+                els.body.innerHTML = '<div class="empty-state">Фрагментов пока нет. Нажмите «＋ Фрагмент», чтобы добавить первый.</div>';
+                return;
+            }
+            if (current < 0 || current >= model.fragments.length) current = 0;
 
             els.tabs.innerHTML = model.fragments.map((f, i) => {
                 const bad = !(f.text || '').trim() || (f.questions || []).some(q =>
@@ -304,7 +312,8 @@
         function questionOf(el) {
             const card = el.closest('[data-q]');
             if (!card) return null;
-            return frag().questions[+card.dataset.q] || null;
+            const f = frag();
+            return f ? (f.questions[+card.dataset.q] || null) : null;
         }
 
         container.addEventListener('input', event => {
@@ -318,6 +327,7 @@
             }
             if (t.matches('[data-f]')) {
                 const f = frag();
+                if (!f) return;
                 f[t.dataset.f] = t.type === 'number' ? (parseInt(t.value, 10) || 0) : t.value;
                 if (t.dataset.f === 'text') {
                     els.fragInfo.textContent = 'Слов: ' + words(t.value) + ' · вопросов: ' + (f.questions || []).length;
@@ -392,15 +402,16 @@
                 current = model.fragments.length - 1;
                 render(); ctx.changed();
             } else if (act === 'del-fragment') {
-                if (model.fragments.length <= 1) { ctx.toast('Нельзя удалить последний фрагмент', true); return; }
                 if (!confirm('Удалить фрагмент ' + (current + 1) + '?')) return;
                 model.fragments.splice(current, 1);
-                current = Math.max(0, current - 1);
+                current = Math.min(current, model.fragments.length - 1);
                 render(); ctx.changed();
             } else if (act === 'add-choice' || act === 'add-input') {
+                if (!f) return;
                 f.questions.push(act === 'add-choice' ? blankChoice() : blankInput());
                 render(); ctx.changed();
             } else if (act === 'del-question') {
+                if (!f) return;
                 const q = questionOf(action);
                 const index = f.questions.indexOf(q);
                 if (index >= 0 && confirm('Удалить вопрос?')) {
@@ -416,7 +427,7 @@
             } else if (act === 'del-option') {
                 const q = questionOf(action);
                 const index = +action.dataset.opt;
-                if (q && q.options.length > 2) {
+                if (q && index >= 0 && index < q.options.length) {
                     const wasCorrect = q.options[index].correct;
                     q.options.splice(index, 1);
                     if (wasCorrect && q.options[0]) q.options[0].correct = true;
@@ -430,9 +441,8 @@
             getModel: () => model,
             getIndex: () => current,
             setModel(next) {
-                model = next && next.fragments ? next : { topicName: '', meta: emptyMeta(), fragments: [blankFragment()] };
-                if (!model.fragments.length) model.fragments.push(blankFragment());
-                current = 0;
+                model = next && next.fragments ? next : { topicName: '', meta: emptyMeta(), fragments: [] };
+                current = model.fragments.length ? 0 : -1;
             },
         };
     }
@@ -487,7 +497,7 @@
         promptPreset: 'rt_v2',
         rootTag: 'readingTest',
         matches: root => root === 'readingTest',
-        sample, parse, build, title, stats, validate, createEditor,
+        sample, blank, parse, build, title, stats, validate, createEditor,
         count, itemLabel, preview,
     });
 })();
