@@ -44,7 +44,7 @@
     }
 
     function blank() {
-        return { questions: [] };
+        return { questions: [blankQuestion('multichoice')] };
     }
 
     /* ------------------------------ Пример ------------------------------ */
@@ -350,7 +350,11 @@
                 current = -1;
                 els.tabs.innerHTML = '';
                 els.info.textContent = 'Вопросов нет';
-                els.body.innerHTML = '<div class="empty-state">Вопросов пока нет. Выберите тип и нажмите «＋ Вопрос».</div>';
+                els.body.innerHTML = '<div class="empty-state">' +
+                    '<p>Вопросов пока нет.</p>' +
+                    '<div class="empty-actions">' +
+                    '<button type="button" class="btn btn-sm btn-primary" data-act="add-question">＋ Вопрос</button>' +
+                    '</div></div>';
                 return;
             }
             if (current < 0 || current >= model.questions.length) current = 0;
@@ -463,30 +467,43 @@
             }
         });
 
-        container.addEventListener('click', event => {
+        /* Своё окно подтверждения вместо системного confirm(): браузеры глушат
+           системные диалоги, и тогда кнопки удаления молча не работают. */
+        function ask(message, okLabel) {
+            if (ctx.confirm) return ctx.confirm(message, { okLabel: okLabel });
+            return Promise.resolve(window.confirm(message));
+        }
+
+        container.addEventListener('click', async event => {
             const nav = event.target.closest('[data-nav]');
             if (nav) { current = +nav.dataset.nav; render(); return; }
 
             const action = event.target.closest('[data-act]');
             if (!action) return;
             const act = action.dataset.act;
-            const item = q();
+            let item = q();
 
             if (act === 'add-question') {
                 model.questions.push(blankQuestion(els.newType.value));
                 current = model.questions.length - 1;
                 render(); ctx.changed();
             } else if (act === 'del-question') {
-                if (!confirm('Удалить вопрос ' + (current + 1) + '?')) return;
+                if (!item) { ctx.toast('Вопросов нет', true); return; }
+                if (!(await ask('Удалить вопрос ' + (current + 1) + '?', 'Удалить'))) return;
                 model.questions.splice(current, 1);
                 current = Math.min(current, model.questions.length - 1);
                 render(); ctx.changed();
+                ctx.toast('Вопрос удалён');
             } else if (act === 'add-answer') {
-                if (!item) return;
+                if (!item) {
+                    item = blankQuestion('multichoice');
+                    model.questions.push(item);
+                    current = model.questions.length - 1;
+                }
                 item.answers.push(blankAnswer(false));
                 render(); ctx.changed();
             } else if (act === 'del-answer') {
-                if (!item) return;
+                if (!item) { ctx.toast('Ответов нет', true); return; }
                 const index = +action.dataset.ai;
                 if (!(item.answers || [])[index]) return;
                 const wasCorrect = item.answers[index].correct;

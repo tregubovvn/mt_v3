@@ -179,6 +179,20 @@ body.resizing { cursor: col-resize; user-select: none; }
     tab-size: 4;
 }
 .xml-editor::placeholder { color: var(--fg-muted); opacity: 0.8; }
+
+.xml-wrap { position: relative; flex: 1; min-height: 0; display: flex; }
+.xml-empty {
+    position: absolute; inset: 0;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 0.5rem; padding: 1.5rem; text-align: center;
+    pointer-events: none; background: rgba(15, 23, 42, 0.55);
+}
+.xml-empty.hidden { display: none; }
+.xml-empty-title { font-weight: 700; color: var(--fg); }
+.xml-empty-text { max-width: 46ch; color: var(--fg-muted); font-size: 0.85rem; line-height: 1.5; }
+.xml-empty-actions { display: flex; gap: 0.4rem; margin-top: 0.4rem; pointer-events: all; }
+.confirm-text { line-height: 1.55; }
+.modal-narrow { width: min(420px, 94vw); }
 .issues {
     flex-shrink: 0; max-height: 92px; overflow: auto;
     display: flex; flex-wrap: wrap; gap: 6px;
@@ -302,6 +316,8 @@ body.resizing { cursor: col-resize; user-select: none; }
     text-align: center;
     background: rgba(15, 23, 42, 0.35);
 }
+.empty-state p { margin-bottom: 0.6rem; }
+.empty-actions { display: flex; gap: 0.4rem; justify-content: center; flex-wrap: wrap; }
 
 /* ------------------------------- Карточки вопросов ------------------------------- */
 

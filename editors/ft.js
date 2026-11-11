@@ -21,7 +21,7 @@
     }
 
     function blank() {
-        return { name: '', meta: emptyMeta(), formulas: [] };
+        return { name: '', meta: emptyMeta(), formulas: [blankFormula()] };
     }
 
     /* ------------------------------ Пример ------------------------------ */
@@ -228,7 +228,11 @@
                 current = -1;
                 els.tabs.innerHTML = '';
                 els.info.textContent = 'Формул нет';
-                els.body.innerHTML = '<div class="empty-state">Формул пока нет. Нажмите «＋ Формула», чтобы добавить первую.</div>';
+                els.body.innerHTML = '<div class="empty-state">' +
+                    '<p>Формул пока нет.</p>' +
+                    '<div class="empty-actions">' +
+                    '<button type="button" class="btn btn-sm btn-primary" data-act="add-formula">＋ Формула</button>' +
+                    '</div></div>';
                 return;
             }
             if (current < 0 || current >= model.formulas.length) current = 0;
@@ -293,30 +297,43 @@
             }
         });
 
-        container.addEventListener('click', event => {
+        /* Своё окно подтверждения вместо системного confirm(): браузеры глушат
+           системные диалоги, и тогда кнопки удаления молча не работают. */
+        function ask(message, okLabel) {
+            if (ctx.confirm) return ctx.confirm(message, { okLabel: okLabel });
+            return Promise.resolve(window.confirm(message));
+        }
+
+        container.addEventListener('click', async event => {
             const nav = event.target.closest('[data-nav]');
             if (nav) { current = +nav.dataset.nav; render(); return; }
 
             const action = event.target.closest('[data-act]');
             if (!action) return;
             const act = action.dataset.act;
-            const item = formula();
+            let item = formula();
 
             if (act === 'add-formula') {
                 model.formulas.push(blankFormula());
                 current = model.formulas.length - 1;
                 render(); ctx.changed();
             } else if (act === 'del-formula') {
-                if (!confirm('Удалить формулу ' + (current + 1) + '?')) return;
+                if (!item) { ctx.toast('Формул нет', true); return; }
+                if (!(await ask('Удалить формулу ' + (current + 1) + '?', 'Удалить'))) return;
                 model.formulas.splice(current, 1);
                 current = Math.min(current, model.formulas.length - 1);
                 render(); ctx.changed();
+                ctx.toast('Формула удалена');
             } else if (act === 'add-symbol') {
-                if (!item) return;
+                if (!item) {
+                    item = blankFormula();
+                    model.formulas.push(item);
+                    current = model.formulas.length - 1;
+                }
                 item.symbols.push({ char: '', name: '' });
                 render(); ctx.changed();
             } else if (act === 'del-symbol') {
-                if (!item) return;
+                if (!item) { ctx.toast('Обозначений нет', true); return; }
                 item.symbols.splice(+action.dataset.si, 1);
                 render(); ctx.changed();
             }

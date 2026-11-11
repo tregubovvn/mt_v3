@@ -160,11 +160,17 @@ test('пустые задания: blank → build → parse', () => {
     for (const id of ['rt', 'mt', 'ft']) {
         const type = types.get(id);
         const model = type.blank();
-        const xml = type.build(model);
-        const back = type.parse(xml);
-        if (id === 'rt') eq(back.fragments.length, 0);
-        if (id === 'mt') eq(back.questions.length, 0);
-        if (id === 'ft') eq(back.formulas.length, 0);
+        const back = type.parse(type.build(model));
+        if (id === 'rt') eq(back.fragments.length, model.fragments.length);
+        if (id === 'mt') eq(back.questions.length, model.questions.length);
+        if (id === 'ft') eq(back.formulas.length, model.formulas.length);
+
+        // Полностью пустой список тоже должен собираться и разбираться без ошибок
+        const empty = id === 'rt' ? { topicName: '', meta: model.meta, fragments: [] }
+            : id === 'mt' ? { questions: [] }
+                : { name: '', meta: model.meta, formulas: [] };
+        const round = type.parse(type.build(empty));
+        eq(type.validate(round).length > 0, true);
     }
 });
 
