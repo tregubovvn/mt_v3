@@ -36,7 +36,7 @@
     }
 
     function blank() {
-        return { topicName: '', meta: emptyMeta(), fragments: [] };
+        return { topicName: '', meta: emptyMeta(), fragments: [blankFragment()] };
     }
 
     /* ------------------------------ Пример ------------------------------ */
@@ -243,7 +243,13 @@
                 current = -1;
                 els.tabs.innerHTML = '';
                 els.fragInfo.textContent = 'Фрагментов нет';
-                els.body.innerHTML = '<div class="empty-state">Фрагментов пока нет. Нажмите «＋ Фрагмент», чтобы добавить первый.</div>';
+                els.body.innerHTML = '<div class="empty-state">' +
+                    '<p>Фрагментов пока нет.</p>' +
+                    '<div class="empty-actions">' +
+                    '<button type="button" class="btn btn-sm btn-primary" data-act="add-fragment">＋ Фрагмент</button>' +
+                    '<button type="button" class="btn btn-sm" data-act="add-choice">＋ Вопрос choice</button>' +
+                    '<button type="button" class="btn btn-sm" data-act="add-input">＋ Вопрос input</button>' +
+                    '</div></div>';
                 return;
             }
             if (current < 0 || current >= model.fragments.length) current = 0;
@@ -385,7 +391,15 @@
             }
         });
 
-        container.addEventListener('click', event => {
+        /* Подтверждение: своё окно, чтобы не зависеть от системных confirm() —
+           браузеры умеют глушить их после нескольких вызовов, и кнопка
+           начинает молча ничего не делать. */
+        function ask(message, okLabel) {
+            if (ctx.confirm) return ctx.confirm(message, { okLabel: okLabel });
+            return Promise.resolve(window.confirm(message));
+        }
+
+        container.addEventListener('click', async event => {
             const nav = event.target.closest('[data-nav]');
             if (nav) {
                 current = +nav.dataset.nav;
@@ -395,32 +409,44 @@
             const action = event.target.closest('[data-act]');
             if (!action) return;
             const act = action.dataset.act;
-            const f = frag();
+            let f = frag();
 
             if (act === 'add-fragment') {
                 model.fragments.push(blankFragment());
                 current = model.fragments.length - 1;
                 render(); ctx.changed();
             } else if (act === 'del-fragment') {
-                if (!confirm('Удалить фрагмент ' + (current + 1) + '?')) return;
+                if (!f) { ctx.toast('Фрагментов нет', true); return; }
+                if (!(await ask('Удалить фрагмент ' + (current + 1) + '?', 'Удалить'))) return;
                 model.fragments.splice(current, 1);
                 current = Math.min(current, model.fragments.length - 1);
                 render(); ctx.changed();
+                ctx.toast('Фрагмент удалён');
             } else if (act === 'add-choice' || act === 'add-input') {
-                if (!f) return;
+                if (!f) {
+                    f = blankFragment();
+                    model.fragments.push(f);
+                    current = model.fragments.length - 1;
+                }
                 f.questions.push(act === 'add-choice' ? blankChoice() : blankInput());
                 render(); ctx.changed();
             } else if (act === 'del-question') {
-                if (!f) return;
+                if (!f) { ctx.toast('Вопросов нет', true); return; }
                 const q = questionOf(action);
                 const index = f.questions.indexOf(q);
-                if (index >= 0 && confirm('Удалить вопрос?')) {
-                    f.questions.splice(index, 1);
-                    render(); ctx.changed();
-                }
+                if (index < 0) { ctx.toast('Вопрос не найден', true); return; }
+                if (!(await ask('Удалить вопрос ' + (index + 1) + '?', 'Удалить'))) return;
+                f.questions.splice(index, 1);
+                render(); ctx.changed();
+                ctx.toast('Вопрос удалён');
             } else if (act === 'add-option') {
-                const q = questionOf(action);
+                let q = questionOf(action);
+                if (!q && f) {
+                    q = blankChoice();
+                    f.questions.push(q);
+                }
                 if (q) {
+                    if (q.type !== 'choice') { q.type = 'choice'; q.options = q.options || []; }
                     q.options.push({ text: '', correct: false });
                     render(); ctx.changed();
                 }

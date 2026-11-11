@@ -99,7 +99,13 @@
         const adapter = window.MtV3Types.get(typeId);
         if (!adapter) return;
         if (!opts || !opts.force) {
-            if (state.dirty && !confirm('В текущем задании есть изменения. Переключить тип без сохранения?')) return;
+            if (state.dirty) {
+                confirmDialog('В текущем задании есть изменения. Переключить тип без сохранения?',
+                    { okLabel: 'Переключить' }).then(ok => {
+                    if (ok) switchType(typeId, { force: true, blank: true });
+                });
+                return;
+            }
         }
         setPreview(false);
 
@@ -114,6 +120,7 @@
         state.editor = adapter.createEditor(els.typeEditor, {
             changed: onModelChanged,
             toast: toast,
+            confirm: confirmDialog,
         });
         state.editor.setModel(model);
         state.editor.render();
@@ -219,6 +226,14 @@
     function setXml(text, force) {
         if (!force && document.activeElement === els.xmlEditor) return;
         els.xmlEditor.value = text;
+        syncXmlEmpty();
+    }
+
+    // Подсказка в пустой XML-панели: исчезает, как только появился любой текст.
+    function syncXmlEmpty() {
+        if (!els.xmlEmpty) return;
+        const empty = !els.xmlEditor.value.trim();
+        els.xmlEmpty.classList.toggle('hidden', !empty);
     }
 
     function onModelChanged() {
@@ -478,6 +493,33 @@
         }
     }
 
+    /* --------------------------- Подтверждение --------------------------- */
+
+    // Своё окно вместо window.confirm(): браузеры умеют блокировать системные
+    // диалоги после нескольких вызовов, и тогда удаление молча не срабатывает.
+    let confirmResolve = null;
+
+    function confirmDialog(message, opts) {
+        const options = opts || {};
+        return new Promise(resolve => {
+            if (confirmResolve) { confirmResolve(false); confirmResolve = null; }
+            els.confirmTitle.textContent = options.title || 'Подтверждение';
+            els.confirmText.textContent = message;
+            els.confirmOk.textContent = options.okLabel || 'Удалить';
+            els.confirmOk.classList.toggle('btn-danger', !options.neutral);
+            confirmResolve = resolve;
+            openModal('confirmModal');
+            setTimeout(() => { if (els.confirmOk) els.confirmOk.focus(); }, 40);
+        });
+    }
+
+    function settleConfirm(yes) {
+        const resolve = confirmResolve;
+        confirmResolve = null;
+        closeModal('confirmModal');
+        if (resolve) resolve(!!yes);
+    }
+
     /* -------------------------------- Модалки -------------------------------- */
 
     function openModal(modalId) {
@@ -494,7 +536,6 @@
     function closeAllModals() {
         document.querySelectorAll('.modal.show').forEach(modal => modal.classList.remove('show'));
     }
-
     /* ------------------------------ Публикация ------------------------------ */
 
     function openPublish() {
@@ -601,7 +642,15 @@
     }
 
     function newTask() {
-        if (state.dirty && !confirm('Создать новое задание без сохранения текущего?')) return;
+        if (state.dirty) {
+            confirmDialog('Создать новое задание без сохранения текущего?', { okLabel: 'Создать' })
+                .then(ok => { if (ok) newTaskForce(); });
+            return;
+        }
+        newTaskForce();
+    }
+
+    function newTaskForce() {
         state.files.resetPublishState();
         const model = state.adapter.blank ? state.adapter.blank() : state.adapter.parse(state.adapter.sample());
         state.editor.setModel(model);
@@ -621,7 +670,15 @@
     }
 
     function loadSample() {
-        if (state.dirty && !confirm('Заменить текущее задание примером XML?')) return;
+        if (state.dirty) {
+            confirmDialog('Заменить текущее задание примером XML?', { okLabel: 'Заменить' })
+                .then(ok => { if (ok) loadSampleForce(); });
+            return;
+        }
+        loadSampleForce();
+    }
+
+    function loadSampleForce() {
         const model = state.adapter.parse(state.adapter.sample());
         state.editor.setModel(model);
         state.editor.render();
@@ -701,6 +758,22 @@
         });
         els.btnCopyXml.addEventListener('click', () => copyText(els.xmlEditor.value));
         els.btnSample.addEventListener('click', loadSample);
+        if (els.btnXmlSample) els.btnXmlSample.addEventListener('click', loadSample);
+        if (els.btnXmlPaste) {
+            els.btnXmlPaste.addEventListener('click', async () => {
+                try {
+                    const text = await navigator.clipboard.readText();
+                    if (!text.trim()) { toast('Буфер обмена пуст', true); return; }
+                    els.xmlEditor.value = text;
+                    els.xmlEditor.dispatchEvent(new Event('input', { bubbles: true }));
+                    syncXmlEmpty();
+                    toast('XML вставлен — нажмите «Применить»');
+                } catch (e) {
+                    toast('Нет доступа к буферу: вставьте вручную (Ctrl+V)', true);
+                    els.xmlEditor.focus();
+                }
+            });
+        }
         els.btnApply.addEventListener('click', applyXml);
         els.btnPrompts.addEventListener('click', () => state.prompts.openDialog());
         els.btnAi.addEventListener('click', askDeepSeek);
@@ -715,12 +788,19 @@
         els.btnPublish.addEventListener('click', openPublish);
         els.btnSettings.addEventListener('click', openSettings);
 
+        els.xmlEditor.addEventListener('focus', () => {
+            // Подсказка не должна закрывать поле: по клику сразу прячем её,
+            // чтобы можно было печатать или вставлять XML без кнопки «Пример».
+            if (els.xmlEmpty) els.xmlEmpty.classList.add('hidden');
+        });
+        els.xmlEditor.addEventListener('blur', syncXmlEmpty);
         els.xmlEditor.addEventListener('input', () => {
             state.xmlDirty = true;
             state.dirty = true;
             els.btnApply.disabled = false;
             els.xmlState.textContent = 'XML изменён — нажмите «Применить»';
             state.files.setContent(els.xmlEditor.value);
+            syncXmlEmpty();
         });
         els.xmlEditor.addEventListener('keydown', event => {
             if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {
@@ -745,15 +825,26 @@
     function bindModals() {
         document.querySelectorAll('.modal').forEach(modal => {
             modal.addEventListener('click', event => {
-                if (event.target === modal) closeModal(modal);
+                if (event.target === modal) {
+                    if (modal.id === 'confirmModal') { settleConfirm(false); return; }
+                    closeModal(modal);
+                }
                 const trigger = event.target.closest('[data-close]');
                 if (trigger) closeModal(modal);
             });
         });
+        document.addEventListener('click', event => {
+            const answer = event.target.closest('[data-confirm]');
+            if (!answer) return;
+            settleConfirm(answer.dataset.confirm === 'yes');
+        });
         document.addEventListener('keydown', event => {
             if (event.key === 'Escape') {
                 const open = document.querySelector('.modal.show');
-                if (open) { closeModal(open); return; }
+                if (open) {
+                    if (open.id === 'confirmModal') settleConfirm(false); else closeModal(open);
+                    return;
+                }
                 if (state.preview.on) { setPreview(false); return; }
                 closeAllModals();
                 return;
@@ -815,7 +906,8 @@
     function cacheElements() {
         [
             'typeTabs', 'typeEditor', 'editorTitle', 'editorMeta',
-            'xmlEditor', 'btnApply', 'xmlState', 'issues',
+            'xmlEditor', 'btnApply', 'xmlState', 'issues', 'xmlEmpty', 'btnXmlSample', 'btnXmlPaste',
+            'confirmModal', 'confirmTitle', 'confirmText', 'confirmOk',
             'btnNew', 'btnOpen', 'btnLoadGist', 'btnSave', 'btnCopyXml',
             'btnPrompts', 'btnAi', 'btnPublish', 'btnSettings', 'btnSample',
             'statusText', 'statusCounts', 'statusSave', 'statusPrompt', 'statusPublish',
