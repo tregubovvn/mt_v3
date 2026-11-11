@@ -312,12 +312,70 @@
         return {
             render,
             getModel: () => model,
+            getIndex: () => current,
             setModel(next) {
                 model = next && next.formulas ? next : { name: '', meta: emptyMeta(), formulas: [blankFormula()] };
                 if (!model.formulas.length) model.formulas.push(blankFormula());
                 current = 0;
             },
         };
+    }
+
+    /* ------------------------------- Просмотр ------------------------------- */
+
+    function count(model) {
+        return ((model && model.formulas) || []).length;
+    }
+
+    function itemLabel(index) {
+        return 'Формула ' + (index + 1);
+    }
+
+    // Детерминированная перестановка: студент видит фрагменты перемешанными,
+    // но при повторном открытии порядка не «прыгает».
+    function shuffle(items, seed) {
+        const list = items.slice();
+        let state = (seed >>> 0) || 1;
+        const rnd = () => {
+            state = (state * 1664525 + 1013904223) >>> 0;
+            return state / 4294967296;
+        };
+        for (let i = list.length - 1; i > 0; i--) {
+            const j = Math.floor(rnd() * (i + 1));
+            [list[i], list[j]] = [list[j], list[i]];
+        }
+        return list;
+    }
+
+    function preview(model, index, opts) {
+        const formula = ((model && model.formulas) || [])[index];
+        if (!formula) return '<p class="hint">Формула не выбрана.</p>';
+        const show = !!(opts && opts.showAnswers);
+        const symbols = (formula.symbols || []).filter(s =>
+            String(s.char || '').trim() || String(s.name || '').trim());
+        const fragments = fragmentsOf(formula.latex);
+        const shown = show ? fragments : shuffle(fragments, index + 11 + (formula.latex || '').length);
+
+        let html = '<article class="pv-formula">';
+        html += '<div class="pv-formula-name">' + esc(formula.name || '—') + '</div>';
+        if (symbols.length) {
+            html += '<div class="pv-symbols">' + symbols.map(s =>
+                '<div class="pv-symbol">' +
+                '<span class="pv-symbol-char" data-latex="' + esc(s.char || '') + '" data-display="inline"></span>' +
+                '<span class="pv-symbol-name">' + esc(s.name || '') + '</span></div>').join('') + '</div>';
+        }
+        if (shown.length) {
+            html += '<div class="pv-fragments">' + shown.map(fragment =>
+                '<span class="pv-token">' + esc(fragment) + '</span>').join('') + '</div>';
+            html += '<p class="hint">' + (show
+                ? 'Порядок фрагментов — правильный ответ.'
+                : 'Фрагменты перемешаны — как их увидит студент.') + '</p>';
+        }
+        if (show && formula.latex) {
+            html += '<div class="pv-answer-formula"><div class="hint">Формула:</div>' +
+                '<div class="pv-math" data-latex="' + esc(formula.latex) + '"></div></div>';
+        }
+        return html + '</article>';
     }
 
     window.MtV3Types.register({
@@ -337,5 +395,6 @@
         rootTag: 'formulas',
         matches: root => root === 'formulas',
         sample, parse, build, title, stats, validate, createEditor,
+        count, itemLabel, preview,
     });
 })();

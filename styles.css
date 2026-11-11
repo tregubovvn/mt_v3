@@ -110,6 +110,7 @@ body.resizing { cursor: col-resize; user-select: none; }
     transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
 }
 .btn:hover { background: var(--border); }
+.btn.active { background: var(--accent); border-color: var(--accent); color: #000; font-weight: 600; }
 .btn:disabled { opacity: 0.55; cursor: not-allowed; }
 .btn-primary { background: var(--accent); color: #000; border-color: var(--accent); font-weight: 600; }
 .btn-primary:hover { background: var(--accent-hover); }
@@ -151,9 +152,9 @@ body.resizing { cursor: col-resize; user-select: none; }
 .resizer:hover, body.resizing .resizer { background: var(--accent); }
 
 .pane-head {
-    height: 40px; flex-shrink: 0;
-    display: flex; align-items: center; gap: 0.6rem;
-    padding: 0.5rem 0.75rem;
+    min-height: 40px; flex-shrink: 0;
+    display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap;
+    padding: 0.45rem 0.75rem;
     background: var(--bg-elevated);
     border-bottom: 1px solid var(--border);
     font-size: 0.85rem; font-weight: 600;
@@ -353,6 +354,72 @@ body.resizing { cursor: col-resize; user-select: none; }
     font-family: 'Consolas', ui-monospace, monospace; font-size: 0.78rem;
 }
 .frag em { color: var(--fg-muted); font-style: normal; font-size: 0.65rem; }
+
+/* --------------------------- Просмотр «как у студента» --------------------------- */
+
+.preview-mode { flex: 1; min-height: 0; overflow-y: auto; padding: 1.25rem; }
+.preview-toolbar {
+    display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;
+    position: sticky; top: 0; z-index: 2;
+    margin: -0.25rem 0 1rem;
+    padding: 0.5rem 0;
+    background: var(--bg);
+}
+.preview-counter { font-size: 0.78rem; color: var(--fg-muted); min-width: 52px; text-align: center; }
+.preview-toolbar .hint { margin: 0 0 0 0.25rem; }
+.preview-toolbar .pv-answers { margin-left: auto; }
+.preview-stage { max-width: 900px; margin: 0 auto; }
+
+.pv-fragment, .pv-formula {
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1.25rem;
+}
+.pv-fragment > .pv-text { font-size: 0.95rem; line-height: 1.7; margin-bottom: 1rem; }
+.pv-q { border-top: 1px solid var(--border); padding-top: 0.9rem; margin-top: 0.9rem; }
+.pv-qtext { font-weight: 600; line-height: 1.6; margin-bottom: 0.6rem; }
+.pv-options { display: flex; flex-direction: column; gap: 0.35rem; }
+.pv-option {
+    display: flex; gap: 0.55rem; align-items: baseline;
+    padding: 0.35rem 0.6rem;
+    border: 1px solid transparent; border-radius: 6px;
+}
+.pv-option.pv-correct { border-color: var(--success); background: rgba(74, 222, 128, 0.08); }
+.pv-letter { color: var(--fg-muted); font-weight: 700; font-size: 0.85rem; flex-shrink: 0; }
+.pv-text { flex: 1; }
+.pv-check { color: var(--success); font-weight: 700; white-space: nowrap; font-size: 0.8rem; }
+.pv-input {
+    margin: 0.25rem 0 0.4rem 0.6rem; max-width: 320px;
+    color: var(--fg-muted); font-style: italic;
+    border-bottom: 1px dashed var(--border); padding: 0.25rem 0;
+}
+.pv-ref { font-size: 0.8rem; color: var(--success); margin: 0.2rem 0 0.2rem 0.6rem; }
+.pv-ref.missing { color: var(--danger); }
+.pv-question { font-weight: 600; line-height: 1.7; margin-bottom: 0.75rem; }
+.pv-question p { margin: 0.3rem 0; }
+.pv-formula-name { font-size: 1.1rem; font-weight: 700; margin-bottom: 0.8rem; }
+.pv-symbols { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 0.4rem 0.8rem; margin-bottom: 1rem; }
+.pv-symbol {
+    display: flex; gap: 0.5rem; align-items: baseline;
+    background: var(--bg); border: 1px solid var(--border); border-radius: 6px;
+    padding: 0.35rem 0.55rem;
+}
+.pv-symbol-char { min-width: 2.5rem; }
+.pv-symbol-name { color: var(--fg-muted); font-size: 0.85rem; }
+.pv-fragments {
+    display: flex; flex-wrap: wrap; gap: 0.4rem;
+    padding: 0.7rem;
+    background: var(--bg); border: 1px dashed var(--border); border-radius: 6px;
+}
+.pv-token {
+    background: var(--bg-card); border: 1px solid var(--border); border-radius: 6px;
+    padding: 0.25rem 0.5rem;
+    font-family: 'Consolas', ui-monospace, monospace; font-size: 0.85rem;
+}
+.pv-answer-formula { margin-top: 1rem; border-top: 1px dashed var(--border); padding-top: 0.8rem; }
+.pv-math { font-size: 1.15rem; color: var(--fg); }
+.pv-math .katex { color: var(--fg); }
 
 /* -------------------------------- Модальные окна -------------------------------- */
 

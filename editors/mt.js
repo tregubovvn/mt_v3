@@ -47,31 +47,31 @@
     /* ------------------------------ Пример ------------------------------ */
 
     function sample() {
-        return [
-            '<?xml version="1.0" encoding="UTF-8"?>',
-            '<quiz>',
-            '    <question type="multichoice">',
-            '        <name><text>Пример: вопрос с формулой</text></name>',
-            '        <questiontext format="html">',
-            '            <text><![CDATA[<p>Выберите правильную формулу: \\\\( \\\\alpha_{н} = \\\\frac{АД_{сэ}}{АД_{с}} \\\\)</p>]]></text>',
-            '        </questiontext>',
-            '        <answer fraction="100" format="html">',
-            '            <text><![CDATA[\\\\( \\\\alpha_{н} = \\\\frac{АД_{сэ}}{АД_{с}} \\\\)]]></text>',
-            '        </answer>',
-            '        <answer fraction="0" format="html">',
-            '            <text><![CDATA[\\\\( \\\\alpha_{н} = \\\\frac{АД_{с}}{АД_{сэ}} \\\\)]]></text>',
-            '        </answer>',
-            '        <answer fraction="0" format="html">',
-            '            <text><![CDATA[\\\\( \\\\alpha_{н} = АД_{сэ} + АД_{с} \\\\)]]></text>',
-            '        </answer>',
-            '    </question>',
-            '    <question type="shortanswer">',
-            '        <name><text>Термин</text></name>',
-            '        <questiontext format="html"><text><![CDATA[<p>Как называется коэффициент?</p>]]></text></questiontext>',
-            '        <answer fraction="100" format="plain"><text>альфа</text></answer>',
-            '    </question>',
-            '</quiz>',
-        ].join('\n');
+        // String.raw: обратные слэши LaTeX остаются ровно такими, как в XML
+        // (в обычной строке их пришлось бы удваивать).
+        return String.raw`<?xml version="1.0" encoding="UTF-8"?>
+<quiz>
+    <question type="multichoice">
+        <name><text>Пример: вопрос с формулой</text></name>
+        <questiontext format="html">
+            <text><![CDATA[<p>Выберите правильную формулу: \( \alpha_{н} = \frac{АД_{сэ}}{АД_{с}} \)</p>]]></text>
+        </questiontext>
+        <answer fraction="100" format="html">
+            <text><![CDATA[\( \alpha_{н} = \frac{АД_{сэ}}{АД_{с}} \)]]></text>
+        </answer>
+        <answer fraction="0" format="html">
+            <text><![CDATA[\( \alpha_{н} = \frac{АД_{с}}{АД_{сэ}} \)]]></text>
+        </answer>
+        <answer fraction="0" format="html">
+            <text><![CDATA[\( \alpha_{н} = АД_{сэ} + АД_{с} \)]]></text>
+        </answer>
+    </question>
+    <question type="shortanswer">
+        <name><text>Термин</text></name>
+        <questiontext format="html"><text><![CDATA[<p>Как называется коэффициент?</p>]]></text></questiontext>
+        <answer fraction="100" format="plain"><text>альфа</text></answer>
+    </question>
+</quiz>`;
     }
 
     /* -------------------------------- Разбор -------------------------------- */
@@ -495,12 +495,72 @@
         return {
             render,
             getModel: () => model,
+            getIndex: () => current,
             setModel(next) {
                 model = next && next.questions ? next : { questions: [blankQuestion('multichoice')] };
                 if (!model.questions.length) model.questions.push(blankQuestion('multichoice'));
                 current = 0;
             },
         };
+    }
+
+    /* ------------------------------- Просмотр ------------------------------- */
+
+    function count(model) {
+        return ((model && model.questions) || []).length;
+    }
+
+    function itemLabel(index) {
+        return 'Вопрос ' + (index + 1);
+    }
+
+    function optionLetter(q, i) {
+        const mode = q.answernumbering || 'abc';
+        if (q.type === 'truefalse' || mode === 'none') return '•';
+        if (mode === '123') return String(i + 1);
+        const base = mode === 'ABCD' ? 65 : 97;
+        return String.fromCharCode(base + (i % 26));
+    }
+
+    // HTML глазами студента: текст вопроса (HTML/LaTeX) и варианты без отметок
+    // правильности; отметки — только при включённом «правильные ответы».
+    function preview(model, index, opts) {
+        const q = ((model && model.questions) || [])[index];
+        if (!q) return '<p class="hint">Вопрос не выбран.</p>';
+        const show = !!(opts && opts.showAnswers);
+
+        let html = '<div class="pv-question">' +
+            (q.text || '<span class="hint">— текст вопроса пуст —</span>') + '</div>';
+
+        if (q.type === 'description') return html;
+
+        if (q.type === 'shortanswer' || q.type === 'numerical') {
+            html += '<div class="pv-input">' +
+                (q.type === 'numerical' ? 'поле ввода числа' : 'поле ввода короткого ответа') + '</div>';
+            if (show) {
+                const refs = (q.answers || []).filter(a => String(a.text || '').trim());
+                html += refs.length
+                    ? refs.map(a => '<div class="pv-ref">Эталон: ' + a.text +
+                        (q.type === 'numerical' ? ' ± ' + (Number.isFinite(a.tolerance) ? a.tolerance : 0) : '') +
+                        '</div>').join('')
+                    : '<div class="pv-ref missing">Эталон не задан</div>';
+            }
+            return html;
+        }
+
+        html += '<div class="pv-options">' + (q.answers || []).map((answer, i) => {
+            const letter = optionLetter(q, i);
+            return '<div class="pv-option' + (show && answer.correct ? ' pv-correct' : '') + '">' +
+                '<span class="pv-letter">' + letter + (letter === '•' ? '' : '.') + '</span>' +
+                '<span class="pv-text">' + (answer.text || '—') + '</span>' +
+                (show && answer.correct ? '<span class="pv-check">✓ верно</span>' : '') +
+                '</div>';
+        }).join('') + '</div>';
+
+        if (q.type === 'multichoice' && !q.single) {
+            html += '<p class="hint">Множественный выбор: можно отметить несколько вариантов</p>';
+        }
+        return html;
     }
 
     window.MtV3Types.register({
@@ -515,5 +575,6 @@
         rootTag: 'quiz',
         matches: root => root === 'quiz',
         sample, parse, build, title, stats, validate, createEditor,
+        count, itemLabel, preview,
     });
 })();

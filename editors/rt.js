@@ -163,8 +163,7 @@
     }
 
     function validate(model) {
-        const issues = [];
-        const fragments = (model && model.fragments) || [];
+        const issues = [];        const fragments = (model && model.fragments) || [];
         if (!(model.topicName || '').trim()) issues.push({ level: 'warn', text: 'Не задано название темы (topicName)' });
         if (!fragments.length) issues.push({ level: 'error', text: 'Нет ни одного фрагмента' });
 
@@ -429,12 +428,52 @@
         return {
             render,
             getModel: () => model,
+            getIndex: () => current,
             setModel(next) {
                 model = next && next.fragments ? next : { topicName: '', meta: emptyMeta(), fragments: [blankFragment()] };
                 if (!model.fragments.length) model.fragments.push(blankFragment());
                 current = 0;
             },
         };
+    }
+
+    /* ------------------------------- Просмотр ------------------------------- */
+
+    function count(model) {
+        return ((model && model.fragments) || []).length;
+    }
+
+    function itemLabel(index) {
+        return 'Фрагмент ' + (index + 1);
+    }
+
+    // HTML глазами студента: текст фрагмента и вопросы без отметок правильности
+    // (отметки появляются только при включённом «правильные ответы»).
+    function preview(model, index, opts) {
+        const fragment = ((model && model.fragments) || [])[index];
+        if (!fragment) return '<p class="hint">Фрагмент не выбран.</p>';
+        const show = !!(opts && opts.showAnswers);
+
+        const questions = (fragment.questions || []).map(q => {
+            const head = '<div class="pv-q"><div class="pv-qtext">' + esc(q.text || '—') + '</div>';
+            if (q.type === 'input') {
+                return head +
+                    '<div class="pv-input">поле ввода ответа</div>' +
+                    (show ? '<div class="pv-ref">Ответ: ' + esc(q.answer || '—') + '</div>' : '') +
+                    '</div>';
+            }
+            const options = (q.options || []).map((option, i) =>
+                '<div class="pv-option' + (show && option.correct ? ' pv-correct' : '') + '">' +
+                '<span class="pv-letter">' + (i + 1) + '.</span>' +
+                '<span class="pv-text">' + esc(option.text || '—') + '</span>' +
+                (show && option.correct ? '<span class="pv-check">✓</span>' : '') +
+                '</div>').join('');
+            return head + '<div class="pv-options">' + options + '</div></div>';
+        }).join('');
+
+        return '<article class="pv-fragment">' +
+            '<div class="pv-text">' + esc(fragment.text || '— текст фрагмента пуст —') + '</div>' +
+            questions + '</article>';
     }
 
     window.MtV3Types.register({
@@ -449,5 +488,6 @@
         rootTag: 'readingTest',
         matches: root => root === 'readingTest',
         sample, parse, build, title, stats, validate, createEditor,
+        count, itemLabel, preview,
     });
 })();
