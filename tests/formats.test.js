@@ -146,6 +146,27 @@ test('mt: валидация ловит отсутствие правильно�
     assert.ok(issues.some(i => i.level === 'error' && /правильный вариант/.test(i.text)));
 });
 
+test('mt: тема и метаданные → первый description, круглый путь', () => {
+    const type = types.get('mt');
+    const model = type.parse(type.sample());
+    model.topicName = 'Тема теста';
+    model.meta = { author: 'Иванов И.И.', university: 'ВУЗ', discipline: 'Дисциплина', audience: 'Студенты' };
+    const xml = type.build(model);
+
+    assert.ok(xml.includes('type="description"'), 'первый вопрос-описание');
+    assert.ok(xml.includes('mt_v3-meta'), 'маркер метаданных');
+    assert.ok(xml.indexOf('type="description"') < xml.indexOf('type="multichoice"'), 'description стоит первым');
+
+    const back = type.parse(xml);
+    eq(back.topicName, 'Тема теста');
+    eq(back.meta.author, 'Иванов И.И.');
+    eq(back.meta.audience, 'Студенты');
+    eq(back.questions.length, model.questions.length);
+    assert.ok(!back.questions.some(q => q.generated), 'сгенерированный вопрос не попадает в список');
+
+    eq(type.build(back), xml, 'повторная сборка не меняет XML');
+});
+
 test('ft: простой и расширенный формат, round-trip', () => {
     const { first, xml } = roundtrip('ft');
     assert.ok(xml.includes('<formulas name='));

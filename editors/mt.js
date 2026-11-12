@@ -43,8 +43,70 @@
         return q;
     }
 
+    function emptyMeta() {
+        return { author: '', university: '', discipline: '', audience: '' };
+    }
+
+    // Служебная шапка Moodle-теста: тема и метаданные живут в первом
+    // вопросе-описании (description). Маркер позволяет отличить её от
+    // обычного авторского description и не показывать в списке вопросов.
+    const META_MARKER = '<!--mt_v3-meta-->';
+    const META_FIELDS = [
+        { key: 'author', label: 'Автор' },
+        { key: 'university', label: 'Университет' },
+        { key: 'discipline', label: 'Дисциплина' },
+        { key: 'audience', label: 'Аудитория' },
+    ];
+
+    function metaHtml(model) {
+        const rows = [];
+        const topic = String((model && model.topicName) || '').trim();
+        if (topic) rows.push('<p><strong>Тема:</strong> ' + esc(topic) + '</p>');
+        const meta = (model && model.meta) || emptyMeta();
+        META_FIELDS.forEach(field => {
+            const value = String(meta[field.key] || '').trim();
+            if (value) rows.push('<p><strong>' + field.label + ':</strong> ' + esc(value) + '</p>');
+        });
+        return rows.length ? META_MARKER + rows.join('') : '';
+    }
+
+    function generatedDescription(model) {
+        const text = metaHtml(model);
+        if (!text) return null;
+        return {
+            type: 'description',
+            name: 'Тема и метаданные',
+            text,
+            answers: [],
+            single: true,
+            shuffleanswers: true,
+            answernumbering: 'abc',
+            generated: true,
+        };
+    }
+
+    function extractMeta(q) {
+        const html = String((q && q.text) || '');
+        if (!html.includes(META_MARKER)) return null;
+        const read = label => {
+            const re = new RegExp('<strong>\\s*' + label + '\\s*:?\\s*</strong>\\s*([\\s\\S]*?)</p>', 'i');
+            const m = re.exec(html);
+            if (!m) return '';
+            return X.decodeEntities(m[1].replace(/<[^>]*>/g, '')).trim();
+        };
+        return {
+            topicName: read('Тема'),
+            meta: {
+                author: read('Автор'),
+                university: read('Университет'),
+                discipline: read('Дисциплина'),
+                audience: read('Аудитория'),
+            },
+        };
+    }
+
     function blank() {
-        return { questions: [blankQuestion('multichoice')] };
+        return { topicName: '', meta: emptyMeta(), questions: [blankQuestion('multichoice')] };
     }
 
     /* ------------------------------ Пример ------------------------------ */
@@ -148,7 +210,14 @@
             questions.push(q);
         });
 
-        return { questions };
+        if (questions.length && questions[0].type === 'description') {
+            const meta = extractMeta(questions[0]);
+            if (meta) {
+                questions.shift();
+                return { topicName: meta.topicName, meta: meta.meta, questions };
+            }
+        }
+        return { topicName: '', meta: emptyMeta(), questions };
     }
 
     /* -------------------------------- Сборка -------------------------------- */
@@ -165,8 +234,8 @@
             '        <generalfeedback format="html">',
             '            <text></text>',
             '        </generalfeedback>',
-            '        <defaultgrade>1.0</defaultgrade>',
-            '        <penalty>0.3333333</penalty>',
+            '        <defaultgrade>' + (q.generated ? '0' : '1.0') + '</defaultgrade>',
+            '        <penalty>' + (q.generated ? '0' : '0.3333333') + '</penalty>',
             '        <hidden>0</hidden>',
         ].join('\n') + '\n';
 
@@ -216,6 +285,8 @@
 
     function build(model) {
         let xml = '<?xml version="1.0" encoding="UTF-8"?>\n<quiz>\n';
+        const generated = generatedDescription(model);
+        if (generated) xml += questionXml(generated);
         (model.questions || []).forEach(q => { xml += questionXml(q); });
         xml += '</quiz>';
         return xml;
@@ -224,6 +295,7 @@
     /* ------------------------------ Метаданные ------------------------------ */
 
     function title(model) {
+        if (model && String(model.topicName || '').trim()) return model.topicName;
         const first = model && model.questions && model.questions[0];
         return (first && first.name) || 'Moodle Quiz';
     }
@@ -237,6 +309,9 @@
     function validate(model) {
         const issues = [];
         const questions = (model && model.questions) || [];
+        if (!String((model && model.topicName) || '').trim()) {
+            issues.push({ level: 'warn', text: 'Не задана тема (topicName) — она попадёт в первый вопрос-описание' });
+        }
         if (!questions.length) issues.push({ level: 'error', text: 'Нет ни одного вопроса' });
 
         questions.forEach((q, qi) => {
@@ -271,10 +346,22 @@
     /* ------------------------------- Редактор ------------------------------- */
 
     function createEditor(container, ctx) {
-        let model = { questions: [blankQuestion('multichoice')] };
+        let model = { topicName: '', meta: emptyMeta(), questions: [blankQuestion('multichoice')] };
         let current = 0;
 
         container.innerHTML = [
+            '<div class="ed-top">',
+            '  <label class="field grow"><span class="label">Тема (topicName)</span>',
+            '    <input class="input" data-mt="topic" placeholder="Название темы"></label>',
+            '  <details class="meta-box"><summary>Метаданные</summary>',
+            '    <div class="grid2">',
+            '      <label class="field"><span class="label">Автор</span><input class="input" data-meta="author"></label>',
+            '      <label class="field"><span class="label">Университет</span><input class="input" data-meta="university"></label>',
+            '      <label class="field"><span class="label">Дисциплина</span><input class="input" data-meta="discipline"></label>',
+            '      <label class="field"><span class="label">Аудитория</span><input class="input" data-meta="audience"></label>',
+            '    </div>',
+            '  </details>',
+            '</div>',
             '<div class="tabs" data-mt="tabs"></div>',
             '<div class="ed-toolbar">',
             '  <select class="select select-sm" data-mt="new-type">',
@@ -288,6 +375,8 @@
         ].join('');
 
         const els = {
+            topic: container.querySelector('[data-mt="topic"]'),
+            meta: Array.from(container.querySelectorAll('[data-meta]')),
             tabs: container.querySelector('[data-mt="tabs"]'),
             body: container.querySelector('[data-mt="body"]'),
             info: container.querySelector('[data-mt="q-info"]'),
@@ -346,6 +435,11 @@
         }
 
         function render() {
+            if (document.activeElement !== els.topic) els.topic.value = model.topicName || '';
+            els.meta.forEach(input => {
+                if (document.activeElement !== input) input.value = (model.meta || emptyMeta())[input.dataset.meta] || '';
+            });
+
             if (!model.questions.length) {
                 current = -1;
                 els.tabs.innerHTML = '';
@@ -400,6 +494,13 @@
 
         container.addEventListener('input', event => {
             const t = event.target;
+            if (t.matches('[data-mt="topic"]')) { model.topicName = t.value; ctx.changed(); return; }
+            if (t.matches('[data-meta]')) {
+                model.meta = model.meta || emptyMeta();
+                model.meta[t.dataset.meta] = t.value;
+                ctx.changed();
+                return;
+            }
             const item = q();
             if (!item) return;
             if (t.matches('[data-qf]')) {
@@ -521,7 +622,7 @@
             getModel: () => model,
             getIndex: () => current,
             setModel(next) {
-                model = next && next.questions ? next : { questions: [] };
+                model = next && next.questions ? next : { topicName: '', meta: emptyMeta(), questions: [blankQuestion('multichoice')] };
                 current = model.questions.length ? 0 : -1;
             },
         };
@@ -547,12 +648,25 @@
 
     // HTML глазами студента: текст вопроса (HTML/LaTeX) и варианты без отметок
     // правильности; отметки — только при включённом «правильные ответы».
+    function metaPreviewHtml(model) {
+        const rows = [];
+        const topic = String((model && model.topicName) || '').trim();
+        if (topic) rows.push('<div class="pv-desc-title">' + esc(topic) + '</div>');
+        const meta = (model && model.meta) || emptyMeta();
+        META_FIELDS.forEach(field => {
+            const value = String(meta[field.key] || '').trim();
+            if (value) rows.push('<div class="pv-desc-row"><span>' + field.label + ':</span> ' + esc(value) + '</div>');
+        });
+        return rows.length ? '<div class="pv-description">' + rows.join('') + '</div>' : '';
+    }
+
     function preview(model, index, opts) {
         const q = ((model && model.questions) || [])[index];
         if (!q) return '<p class="hint">Вопрос не выбран.</p>';
         const show = !!(opts && opts.showAnswers);
 
-        let html = '<div class="pv-question">' +
+        let html = index === 0 ? metaPreviewHtml(model) : '';
+        html += '<div class="pv-question">' +
             (q.text || '<span class="hint">— текст вопроса пуст —</span>') + '</div>';
 
         if (q.type === 'description') return html;
