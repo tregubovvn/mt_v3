@@ -18,7 +18,7 @@
         };
     </script>
     <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js"></script>
-    <link rel="stylesheet" href="styles.css?v=6">
+    <link rel="stylesheet" href="styles.css?v=7">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
 </head>
 <body>
@@ -221,10 +221,17 @@
 <!-- ===== Ожидание ответа DeepSeek ===== -->
 <div class="busy-overlay" id="busyOverlay">
     <div class="busy-box">
-        <div class="spinner" aria-hidden="true"></div>
-        <div class="busy-title">DeepSeek обрабатывает задание</div>
+        <div class="ai-orbit" aria-hidden="true">
+            <span class="ai-core">✨</span>
+            <span class="ai-satellite"></span>
+            <span class="ai-ring ai-ring-1"></span>
+            <span class="ai-ring ai-ring-2"></span>
+        </div>
+        <div class="busy-title">DeepSeek думает<span class="ai-dots"><span>.</span><span>.</span><span>.</span></span></div>
         <div class="busy-text" id="busyText">Отправка запроса…</div>
-        <div class="busy-timer" id="busyTimer">00:00</div>
+        <div class="busy-timer-row">Прошло: <span class="busy-timer" id="busyTimer">00:00</span></div>
+        <p class="busy-hint">Запрос можно отменить — соединение прервётся.</p>
+        <button type="button" class="btn btn-danger" id="btnAiCancel">Отменить</button>
     </div>
 </div>
 
@@ -234,11 +241,11 @@
 <script src="vendor/prompts-api.js"></script>
 <script src="vendor/latex-fragments.js"></script>
 <script src="vendor/xml.js"></script>
-<script src="editors/registry.js?v=5"></script>
-<script src="editors/rt.js?v=6"></script>
-<script src="editors/mt.js?v=6"></script>
-<script src="editors/ft.js?v=6"></script>
+<script src="editors/registry.js?v=7"></script>
+<script src="editors/rt.js?v=7"></script>
+<script src="editors/mt.js?v=7"></script>
+<script src="editors/ft.js?v=7"></script>
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
-<script src="app.js?v=6"></script>
+<script src="app.js?v=7"></script>
 </body>
 </html>

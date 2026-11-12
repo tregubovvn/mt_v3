@@ -17,7 +17,9 @@
     const LS = {
         type: 'mtV3_active_type',
         settings: 'mtV3_settings',
+        meta: 'mtV3_meta',
     };
+    const META_KEYS = ['author', 'university', 'discipline', 'audience'];
     const DEFAULTS = {
         gh: '', gv: '', server: '', ds: '',
         endpoint: '', folder: '',
@@ -33,6 +35,7 @@
         filesCache: {},
         promptsCache: {},
         settings: loadSettings(),
+        meta: loadMeta(),
         dirty: false,
         xmlDirty: false,
         busy: false,
@@ -53,6 +56,45 @@
 
     function saveSettings() {
         try { localStorage.setItem(LS.settings, JSON.stringify(state.settings)); } catch (e) { /* ignore */ }
+    }
+
+    /* ------------------------- Метаданные задания ------------------------- */
+
+    // Как в rt_v2: автор/университет/дисциплина/аудитория хранятся в
+    // localStorage и автоматически подставляются в новое задание любого типа.
+    function loadMeta() {
+        const out = {};
+        META_KEYS.forEach(key => { out[key] = ''; });
+        try {
+            const raw = JSON.parse(localStorage.getItem(LS.meta) || '{}');
+            META_KEYS.forEach(key => { out[key] = String(raw[key] || ''); });
+        } catch (e) { /* повреждённое значение — пустые поля */ }
+        return out;
+    }
+
+    function saveMeta(meta) {
+        META_KEYS.forEach(key => {
+            if (meta && typeof meta[key] === 'string') state.meta[key] = meta[key];
+        });
+        try { localStorage.setItem(LS.meta, JSON.stringify(state.meta)); } catch (e) { /* ignore */ }
+    }
+
+    // Подставить сохранённые метаданные в пустую модель нового задания.
+    function applyStoredMeta(model) {
+        if (!model || !model.meta) return model;
+        META_KEYS.forEach(key => { model.meta[key] = state.meta[key] || ''; });
+        return model;
+    }
+
+    // Запомнить непустые метаданные из разобранного XML (как в rt_v2).
+    function rememberMeta(model) {
+        if (!model || !model.meta) return;
+        const filled = {};
+        META_KEYS.forEach(key => {
+            const value = String(model.meta[key] || '').trim();
+            if (value) filled[key] = value;
+        });
+        if (Object.keys(filled).length) saveMeta(filled);
     }
 
     /* -------------------------------- Утилиты -------------------------------- */
@@ -114,8 +156,10 @@
         state.files = filesFor(typeId);
         state.prompts = promptsFor(typeId);
 
-        const blank = !!(opts && opts.blank);
-        const model = blank && adapter.blank ? adapter.blank() : adapter.parse(adapter.sample());
+        const blank = !opts || opts.blank !== false;
+        const model = blank && adapter.blank
+            ? applyStoredMeta(adapter.blank())
+            : adapter.parse(adapter.sample());
         els.typeEditor.innerHTML = '';
         state.editor = adapter.createEditor(els.typeEditor, {
             changed: onModelChanged,
@@ -238,9 +282,11 @@
 
     function onModelChanged() {
         if (!state.adapter || !state.editor) return;
-        const xml = state.adapter.build(state.editor.getModel());
+        const model = state.editor.getModel();
+        const xml = state.adapter.build(model);
         setXml(xml, true);
         state.files.setContent(xml);
+        if (model && model.meta) saveMeta(model.meta);
         state.dirty = true;
         state.xmlDirty = false;
         els.btnApply.disabled = true;
@@ -264,6 +310,7 @@
         }
         state.editor.setModel(model);
         state.editor.render();
+        rememberMeta(model);
         state.files.setContent(text);
         state.dirty = true;
         state.xmlDirty = false;
@@ -442,11 +489,13 @@
             return;
         }
 
-        setBusy(true, 'DeepSeek: отправка запроса');
+        setBusy(true, 'Отправка запроса в DeepSeek');
+        aiController = new AbortController();
         try {
             const response = await fetch('https://api.deepseek.com/chat/completions', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+                signal: aiController.signal,
                 body: JSON.stringify({
                     model: 'deepseek-chat',
                     stream: false,
@@ -467,18 +516,27 @@
             setStatus('Ответ DeepSeek применён');
             applyXml();
         } catch (e) {
-            toast('DeepSeek: ' + e.message, true);
-            setStatus('DeepSeek: ' + e.message, true);
+            if (e && e.name === 'AbortError') {
+                toast('Запрос к DeepSeek отменён');
+                setStatus('DeepSeek: запрос отменён');
+            } else {
+                toast('DeepSeek: ' + e.message, true);
+                setStatus('DeepSeek: ' + e.message, true);
+            }
         } finally {
+            aiController = null;
             setBusy(false);
         }
     }
+
+    let aiController = null;
 
     let busyTimer = null;
     function setBusy(busy, text) {
         state.busy = busy;
         const overlay = els.busyOverlay;
         overlay.classList.toggle('show', busy);
+        if (els.btnAiCancel) els.btnAiCancel.disabled = !busy;
         if (busy) {
             const started = Date.now();
             els.busyText.textContent = text || 'Обработка…';
@@ -602,6 +660,7 @@
             const model = state.adapter.parse(content);
             state.editor.setModel(model);
             state.editor.render();
+            rememberMeta(model);
             state.files.setContent(content, { silent: true });
             state.dirty = false;
             state.xmlDirty = false;
@@ -652,7 +711,7 @@
 
     function newTaskForce() {
         state.files.resetPublishState();
-        const model = state.adapter.blank ? state.adapter.blank() : state.adapter.parse(state.adapter.sample());
+        const model = applyStoredMeta(state.adapter.blank ? state.adapter.blank() : state.adapter.parse(state.adapter.sample()));
         state.editor.setModel(model);
         state.editor.render();
         state.dirty = false;
@@ -679,7 +738,7 @@
     }
 
     function loadSampleForce() {
-        const model = state.adapter.parse(state.adapter.sample());
+        const model = applyStoredMeta(state.adapter.parse(state.adapter.sample()));
         state.editor.setModel(model);
         state.editor.render();
         const xml = state.adapter.build(state.editor.getModel());
@@ -777,6 +836,12 @@
         els.btnApply.addEventListener('click', applyXml);
         els.btnPrompts.addEventListener('click', () => state.prompts.openDialog());
         els.btnAi.addEventListener('click', askDeepSeek);
+        els.btnAiCancel.addEventListener('click', () => {
+            if (aiController) {
+                aiController.abort();
+                toast('Отменяю запрос…');
+            }
+        });
         els.btnPreview.addEventListener('click', () => setPreview(!state.preview.on));
         els.pvClose.addEventListener('click', () => setPreview(false));
         els.pvPrev.addEventListener('click', () => previewStep(-1));
@@ -919,7 +984,7 @@
             'taskUrl', 'btnCopyTask', 'openTask',
             'flCheck', 'flHeader', 'flCrush', 'flRandom',
             'gistModal', 'gistRef', 'btnGistLoad',
-            'busyOverlay', 'busyText', 'busyTimer',
+            'busyOverlay', 'busyText', 'busyTimer', 'btnAiCancel',
         ].forEach(name => { els[name] = id(name); });
     }
 

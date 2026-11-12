@@ -544,11 +544,42 @@ body.resizing { cursor: col-resize; user-select: none; }
 @keyframes spin { to { transform: rotate(360deg); } }
 .busy-title { font-size: 1.05rem; font-weight: 600; }
 .busy-text { font-size: 0.82rem; opacity: 0.75; margin-top: 0.35rem; }
+.busy-timer-row { font-size: 0.82rem; color: var(--fg-muted); margin-top: 0.5rem; }
 .busy-timer {
-    margin-top: 0.6rem;
     font-family: ui-monospace, Menlo, monospace;
     font-size: 1.05rem; color: var(--accent); font-weight: 700;
 }
+.busy-hint { font-size: 0.75rem; color: var(--fg-muted); margin: 0.35rem 0 0.8rem; }
+.busy-box .btn-danger { width: 100%; }
+
+/* Орбита вокруг «ядра» — как в редакторе mt_v2 */
+.ai-orbit { position: relative; width: 96px; height: 96px; margin: 0 auto 0.6rem; }
+.ai-core {
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 2rem; animation: ai-core-pulse 2s ease-in-out infinite;
+}
+@keyframes ai-core-pulse {
+    0%, 100% { transform: scale(1); filter: drop-shadow(0 0 6px #a78bfa); }
+    50%      { transform: scale(1.15); filter: drop-shadow(0 0 18px #a78bfa); }
+}
+.ai-ring { position: absolute; inset: 0; border-radius: 50%; border: 2px dashed rgba(139, 92, 246, 0.5); }
+.ai-ring-1 { animation: ai-spin 8s linear infinite; }
+.ai-ring-2 { inset: 12px; border-style: dotted; border-color: rgba(56, 189, 248, 0.5); animation: ai-spin 5s linear infinite reverse; }
+.ai-satellite {
+    position: absolute; top: 50%; left: 50%; width: 10px; height: 10px; margin: -5px;
+    border-radius: 50%; background: #38bdf8; box-shadow: 0 0 12px #38bdf8;
+    transform-origin: 5px 5px; animation: ai-orbit-move 2.4s linear infinite;
+}
+@keyframes ai-orbit-move {
+    from { transform: rotate(0deg) translateX(48px) rotate(0deg); }
+    to   { transform: rotate(360deg) translateX(48px) rotate(-360deg); }
+}
+@keyframes ai-spin { to { transform: rotate(360deg); } }
+.busy-title .ai-dots span { animation: ai-dot-blink 1.4s infinite; opacity: 0; }
+.busy-title .ai-dots span:nth-child(2) { animation-delay: 0.2s; }
+.busy-title .ai-dots span:nth-child(3) { animation-delay: 0.4s; }
+@keyframes ai-dot-blink { 0%, 60%, 100% { opacity: 0; } 30% { opacity: 1; } }
 
 /* --------------------------- Тёмная тема окна режимов ---------------------------
    prompts-api приходит со светлыми стилями; здесь они перекрываются по
@@ -624,6 +655,6 @@ body.resizing { cursor: col-resize; user-select: none; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-    .spinner { animation-duration: 3s; }
+    .spinner, .ai-orbit, .ai-ring, .ai-satellite, .ai-core, .busy-title .ai-dots span { animation: none; }
     .modal, .modal-box, .toast { transition: none; }
 }
