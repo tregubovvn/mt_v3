@@ -469,7 +469,10 @@
     }
 
     async function askDeepSeek() {
-        if (state.busy) return;
+        if (state.busy) {
+            toast('Запрос к DeepSeek уже выполняется — дождитесь ответа или нажмите «Отменить»');
+            return;
+        }
         const token = (state.settings.ds || '').trim();
         if (!token) {
             openModal('settingsModal');
@@ -478,7 +481,8 @@
         }
         const prompt = state.prompts ? state.prompts.getPromptText() : '';
         if (!prompt.trim()) {
-            toast('У активного режима нет промпта', true);
+            const active = state.prompts ? state.prompts.getActivePrompt() : null;
+            toast('У режима «' + (active ? active.name : '—') + '» пустой промпт — выберите другой в «Режимах» или заполните текст', true);
             return;
         }
         const xml = els.xmlEditor.value.trim();
