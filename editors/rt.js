@@ -520,7 +520,6 @@
         gistFilename: 'reading_test.xml',
         taskApp: { baseUrl: 'https://tregubovvn.github.io/rt_v2/index.html', paramName: 'file' },
         serverType: 'ReadTest',
-        promptPreset: 'rt_v2',
         rootTag: 'readingTest',
         matches: root => root === 'readingTest',
         sample, blank, parse, build, title, stats, validate, createEditor,

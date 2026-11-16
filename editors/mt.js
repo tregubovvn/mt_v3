@@ -708,7 +708,6 @@
         gistFilename: 'quiz.xml',
         taskApp: { baseUrl: 'https://tregubovvn.github.io/mt_v2/index.html', paramName: 'name' },
         serverType: 'MoodleTest',
-        promptPreset: 'mt_v2',
         rootTag: 'quiz',
         matches: root => root === 'quiz',
         sample, blank, parse, build, title, stats, validate, createEditor,

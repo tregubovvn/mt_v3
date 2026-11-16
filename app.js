@@ -429,11 +429,9 @@
         if (state.promptsCache[typeId]) return state.promptsCache[typeId];
         const adapter = window.MtV3Types.get(typeId);
         const prompts = PromptsApi.create({
-            preset: adapter.promptPreset || null,
-            builtins: adapter.promptBuiltins || [],
+            type: typeId,                    // 'rt' | 'mt' | 'ft' — промпты своего вида теста
             storagePrefix: 'mtV3_prompts_' + typeId,
             tokenProvider: () => state.settings.gh || '',
-            includeBuiltinsInGist: false,
             dialogTitle: 'Режим работы: ' + adapter.label,
         });
         prompts.on('status', event => setStatus(event.message));
