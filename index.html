@@ -18,7 +18,7 @@
         };
     </script>
     <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js"></script>
-    <link rel="stylesheet" href="styles.css?v=7">
+    <link rel="stylesheet" href="styles.css?v=9">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
 </head>
 <body>
@@ -32,14 +32,16 @@
         </div>
     </div>
 
-    <nav class="type-tabs" id="typeTabs" aria-label="Тип XML"></nav>
+    <div class="type-switch">
+        <nav class="type-tabs" id="typeTabs" aria-label="Тип XML"></nav>
+        <button type="button" class="btn" id="btnPrompts" title="Режимы и промпты для выбранного вида теста">📝 Режимы</button>
+    </div>
 
     <div class="top-actions">
         <button type="button" class="btn" id="btnNew" title="Новое задание выбранного типа">＋ Новое</button>
         <button type="button" class="btn" id="btnOpen" title="Открыть XML-файл с диска">📂 Открыть</button>
         <button type="button" class="btn" id="btnLoadGist" title="Загрузить XML из GitHub Gist">☁ Из Gist</button>
         <button type="button" class="btn btn-primary" id="btnSave" title="Сохранить XML в файл">💾 Сохранить</button>
-        <button type="button" class="btn" id="btnPrompts" title="Режимы и промпты">📝 Режимы</button>
         <button type="button" class="btn btn-publish" id="btnPublish" title="Gist, GitVerse или свой сервер">🚀 Публикация</button>
         <button type="button" class="btn btn-icon btn-settings" id="btnSettings" title="Настройки и токены">⚙</button>
     </div>
@@ -238,14 +240,14 @@
 <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
 <script src="vendor/file-api.js"></script>
-<script src="vendor/prompts-api.js?v=8"></script>
+<script src="vendor/prompts-api.js?v=9"></script>
 <script src="vendor/latex-fragments.js"></script>
 <script src="vendor/xml.js"></script>
-<script src="editors/registry.js?v=7"></script>
-<script src="editors/rt.js?v=7"></script>
-<script src="editors/mt.js?v=7"></script>
-<script src="editors/ft.js?v=7"></script>
+<script src="editors/registry.js?v=9"></script>
+<script src="editors/rt.js?v=9"></script>
+<script src="editors/mt.js?v=9"></script>
+<script src="editors/ft.js?v=9"></script>
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
-<script src="app.js?v=7"></script>
+<script src="app.js?v=9"></script>
 </body>
 </html>

@@ -91,6 +91,7 @@ body.resizing { cursor: col-resize; user-select: none; }
 .type-short { font-size: 0.58rem; font-weight: 700; letter-spacing: .08em; color: var(--accent); }
 .type-label { font-size: 0.78rem; font-weight: 600; }
 .type-tab.active .type-short { color: #0c4a6e; }
+.type-switch { display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap; }
 
 .top-actions { display: flex; gap: 0.35rem; flex-wrap: wrap; margin-left: auto; }
 
