@@ -415,12 +415,6 @@
         gistFilename: 'formula_test.xml',
         taskApp: { baseUrl: 'https://tregubovvn.github.io/ft/index.html', paramName: 'file' },
         serverType: 'FormulaTest',
-        promptPreset: null,
-        // У редактора формул свои два базовых промпта (Gist'ы ft_v2).
-        promptBuiltins: [
-            { id: 'ft-formulas', name: 'Промпт для формул', gistUrl: 'https://gist.github.com/tregubovvn/e32e6561ac50b1866e5cb9de2a238f68' },
-            { id: 'ft-tasks', name: 'Промпт для задач', gistUrl: 'https://gist.github.com/tregubovvn/195317d885acce603759b1cdcf6942e4' },
-        ],
         rootTag: 'formulas',
         matches: root => root === 'formulas',
         sample, blank, parse, build, title, stats, validate, createEditor,
