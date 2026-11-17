@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RE:AD</title>
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="../shared/results.css?v=1">
+</head>
+<body>
+
+<div class="app-wrapper">
+    <!-- Header -->
+    <div class="header-bar" id="main-header">
+        <div class="header-title">
+            <span id="header-step">Фрагмент 1</span>
+            <span class="badge" id="header-badge">Чтение</span>
+        </div>
+        
+        <div class="error-counter" id="error-counter-box">
+            Ошибки: <span id="error-count">0</span>/2
+        </div>
+
+        <div class="progress-pips" id="pips-container"></div>
+
+        <!-- Кнопка завершения: «Завершить чтение» в режиме чтения, «Завершить тест» в режимах теста (текст/обработчик задаёт setFinishButton) -->
+        <button class="btn-finish" id="btn-finish" type="button" title="Завершить тест и перейти к результатам">Завершить тест</button>
+    </div>
+
+    <!-- Screen 1: Auth -->
+    <div class="screen visible" id="screen-auth">
+        <div class="logo-text">RE:AD</div>
+        <p class="subtitle">Платформа осмысленного чтения</p>
+
+        <div class="input-group">
+            <label for="input-fio">ФИО студента</label>
+            <input type="text" id="input-fio" placeholder="Иванов Иван Иванович">
+        </div>
+
+        <div class="input-group">
+            <label for="input-group-name">Группа</label>
+            <input type="text" id="input-group-name" placeholder="Например: БП1-24">
+        </div>
+
+        <div class="input-group">
+            <label id="topic-name-label">Тема:</label>
+        </div>
+
+        <button class="btn" id="btn-start" type="button" disabled>Начать чтение</button>
+        <!-- кнопка для пропуска чтения -->
+        <button class="btn btn-secondary" id="btn-skip" type="button" disabled>Сдать финальный тест без чтения</button>
+        <button class="btn btn-secondary" id="btn-teacher" type="button" disabled>Для преподавателя</button>
+    </div>
+
+    <!-- Screen 2: Process -->
+    <div class="screen" id="screen-process">
+        <div class="timer-bar"><div class="timer-fill" id="timer-fill"></div></div>
+        <div class="content-box" id="content-area">Загрузка...</div>
+        <div id="controls-area"></div>
+    </div>
+
+    <!-- Screen 3: Results — единое окно результатов (shared/results.js) -->
+    <div class="screen" id="screen-result">
+        <div id="mt3Results"></div>
+    </div>
+</div>
+
+<!-- API Student Tracker: https://github.com/tregubovvn/save_all_result -->
+<script src="../shared/results.js?v=1"></script>
+<script type="module" src="js/app.js?v=1"></script>
+</body>
+</html>

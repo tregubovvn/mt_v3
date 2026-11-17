@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Извлечение вопросов из XML-теста</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    font-family: 'Segoe UI', Arial, sans-serif; background: #f4f5f7;
+    margin: 0; padding: 20px; font-size: 16px;
+  }
+  .container { max-width: 900px; margin: 0 auto; }
+  h1 { font-size: 20px; margin: 0 0 14px; }
+  .toolbar {
+    margin-bottom: 10px; display: flex; align-items: center;
+    flex-wrap: wrap; gap: 6px;
+  }
+  button {
+    padding: 8px 14px; font-size: 14px; cursor: pointer;
+    border: 1px solid #b9bcc4; border-radius: 6px; background: #fff;
+  }
+  button:hover { background: #eef1f6; }
+  button:active { background: #dde3ec; }
+  button.active { background: #dbe7ff; border-color: #7d9fd3; font-weight: bold; }
+  .font-btn { min-width: 44px; font-weight: bold; }
+  .sep { width: 14px; }
+  #status { font-size: 13px; }
+  #status.ok { color: #1a7f37; }
+  #status.err { color: #c62828; }
+
+  /* Однострочное поле ввода XML */
+  #input {
+    width: 100%; height: 2.7em;
+    font-family: Consolas, 'Courier New', monospace; font-size: 13px;
+    padding: 8px 10px; border: 1px solid #b9bcc4; border-radius: 6px;
+    white-space: nowrap; overflow: auto; resize: none; display: block;
+    background: #fff;
+  }
+
+  /* Область вывода — обычные параграфы */
+  #output {
+    width: 100%; min-height: 45vh; margin-top: 10px;
+    padding: 14px 16px; border: 1px solid #b9bcc4; border-radius: 6px;
+    background: #fff; line-height: 1.55; overflow-wrap: break-word;
+  }
+  #output p { margin: 0 0 4px; }
+  #output p.topic { font-weight: bold; margin-bottom: 12px; }
+  #output p.frag  { font-weight: bold; margin-top: 16px; }
+  #output p.answer-not-found { color: #c62828; }
+
+  #output .placeholder { color: #999; font-style: italic; }
+
+  .hint { font-size: 12px; color: #666; margin-top: 8px; line-height: 1.4; }
+  .denied {
+    max-width: 400px; margin: 100px auto; text-align: center;
+    font-size: 18px; color: #c62828; font-weight: bold;
+  }
+
+  /* ---------- Адаптивность ---------- */
+  @media (max-width: 640px) {
+    body { padding: 10px; font-size: 15px; }
+    h1 { font-size: 17px; margin-bottom: 10px; }
+    button { padding: 9px 11px; font-size: 13px; }
+    .font-btn { min-width: 42px; }
+    .sep { width: 0; flex-basis: 100%; } /* кнопки шрифта — на новую строку */
+    #input { font-size: 12px; height: 2.5em; }
+    #output { min-height: 40vh; padding: 10px 12px; }
+    .hint { font-size: 11px; }
+  }
+  @media (min-width: 641px) and (max-width: 900px) {
+    body { padding: 14px; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>Извлечение вопросов из XML-теста</h1>
+
+  <div class="toolbar">
+    <button id="pasteBtn">Вставить</button>
+    <button id="copyBtn">Копировать</button>
+    <button id="modeBtn">Показать текст фрагментов</button>
+    <span class="sep"></span>
+    <button id="fontMinus" class="font-btn" title="Уменьшить шрифт">A−</button>
+    <button id="fontReset" class="font-btn" title="Обычный шрифт">A</button>
+    <button id="fontPlus"  class="font-btn" title="Увеличить шрифт">A+</button>
+    <span id="status"></span>
+  </div>
+
+  <textarea id="input" wrap="off" spellcheck="false"
+            placeholder="Строка для ввода XML: вставьте сюда (Ctrl+V) или перетащите файл .xml в окно"></textarea>
+
+  <div id="output"><p class="placeholder">Здесь появится список вопросов...</p></div>
+
+  <div class="hint">Вставьте XML в верхнюю строку (Ctrl+V, кнопка «Вставить» или перетаскивание файла) — результат появится ниже. Кнопки A− / A / A+ меняют размер шрифта результата. «Копировать» копирует результат в буфер обмена.</div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  // ======== ЖЁСТКО ВШИТЫЙ ПАРОЛЬ (нужен ТОЛЬКО для загрузки XML по ссылке) ========
+  var PASSWORD = '1234';
+  var MAX_ATTEMPTS = 3;
+  // ================================================================================
+
+  var inputEl  = document.getElementById('input');
+  var outputEl = document.getElementById('output');
+  var statusEl = document.getElementById('status');
+  var modeBtn  = document.getElementById('modeBtn');
+  var statusTimer = null;
+
+  var currentMode = 'answersOnly'; // 'answersOnly' — только вопросы, 'withText' — с текстом фрагментов
+  var lastData = null;             // распарсенные данные последнего XML
+  var lastText = '';               // последний сгенерированный текст (для копирования)
+
+  var DEFAULT_FONT = 16, MIN_FONT = 10, MAX_FONT = 30, FONT_STEP = 2;
+
+  function showStatus(msg, isError) {
+    statusEl.textContent = msg;
+    statusEl.className = isError ? 'err' : 'ok';
+    clearTimeout(statusTimer);
+    statusTimer = setTimeout(function () { statusEl.textContent = ''; }, 6000);
+  }
+
+  function getQueryParam(name) {
+    return new URLSearchParams(window.location.search).get(name);
+  }
+
+  // ---------- Авторизация (только для загрузки файла по ссылке) ----------
+  function authorize(wrongFromUrl) {
+    var msg = wrongFromUrl
+      ? 'Пароль из ссылки неверный. Введите пароль:'
+      : 'Для загрузки XML-файла введите пароль:';
+
+    for (var i = 0; i < MAX_ATTEMPTS; i++) {
+      var extra = i > 0 ? ' (осталось попыток: ' + (MAX_ATTEMPTS - i) + ')' : '';
+      var p = prompt(msg + extra);
+      if (p === null) return false;
+      if (p === PASSWORD) return true;
+    }
+    return false;
+  }
+
+  // ---------- Разбор XML в структуру данных ----------
+  function parseTest(xmlText) {
+    var doc;
+    try {
+      doc = new DOMParser().parseFromString(xmlText, 'application/xml');
+    } catch (e) { return null; }
+    if (doc.getElementsByTagName('parsererror').length) return null;
+
+    var topicEl = doc.getElementsByTagName('topicName')[0];
+    var topic = topicEl ? topicEl.textContent.trim() : '';
+
+    var fragments = [];
+    var fragEls = doc.getElementsByTagName('fragment');
+    var count = 0;
+
+    for (var f = 0; f < fragEls.length; f++) {
+      var frag = { text: '', questions: [] };
+      var tEl = fragEls[f].getElementsByTagName('text')[0];
+      if (tEl) frag.text = tEl.textContent.trim();
+
+      var qs = fragEls[f].getElementsByTagName('question');
+      for (var i = 0; i < qs.length; i++) {
+        count++;
+        var q = qs[i];
+        var qTextEl = q.getElementsByTagName('text')[0];
+        var type = (q.getAttribute('type') || '').toLowerCase();
+        var answer = '';
+
+        if (type === 'choice') {
+          var options = q.getElementsByTagName('option');
+          var corrects = [];
+          for (var o = 0; o < options.length; o++) {
+            var v = (options[o].getAttribute('correct') || '').toLowerCase();
+            if (v === 'true' || v === '1' || v === 'yes' || v === 'да') {
+              corrects.push(options[o].textContent.trim());
+            }
+          }
+          answer = corrects.join(' / ');
+        } else if (type === 'input') {
+          var aEl = q.getElementsByTagName('answer')[0];
+          if (aEl) answer = aEl.textContent.trim();
+        }
+
+        if (!answer) answer = 'ответ не найден';
+        frag.questions.push({ text: qTextEl ? qTextEl.textContent.trim() : '', answer: answer });
+      }
+      fragments.push(frag);
+    }
+
+    if (count === 0) return null;
+    return { topic: topic, fragments: fragments, count: count };
+  }
+
+  // ---------- Формирование текста результата (используется и для вывода, и для копирования) ----------
+  function formatTest(data, withText) {
+    var out = [];
+    if (data.topic) {
+      out.push('ТЕМА: ' + data.topic);
+      out.push('');
+    }
+    var counter = 0;
+    for (var f = 0; f < data.fragments.length; f++) {
+      out.push('=== ФРАГМЕНТ ' + (f + 1) + ' ===');
+      if (withText && data.fragments[f].text) {
+        out.push(data.fragments[f].text);
+        out.push('');
+      }
+      for (var i = 0; i < data.fragments[f].questions.length; i++) {
+        counter++;
+        var q = data.fragments[f].questions[i];
+        out.push(counter + '. ' + q.text + ' (' + q.answer + ')');
+      }
+      out.push('');
+    }
+    return out.join('\n').trim();
+  }
+
+  // ---------- Отрисовка результата в виде параграфов ----------
+  function renderOutput(text) {
+    outputEl.innerHTML = '';
+    var frag = document.createDocumentFragment();
+    var lines = text.split('\n');
+
+    for (var i = 0; i < lines.length; i++) {
+      var line = lines[i];
+      if (!line.trim()) continue; // пустые строки — только отступы через CSS
+
+      var p = document.createElement('p');
+      p.textContent = line; // textContent — безопасно, XML-содержимое не интерпретируется как HTML
+
+      if (line.indexOf('ТЕМА:') === 0)      p.className = 'topic';
+      else if (line.indexOf('=== ') === 0)  p.className = 'frag';
+
+      frag.appendChild(p);
+    }
+    outputEl.appendChild(frag);
+  }
+
+  function showPlaceholder(msg) {
+    outputEl.innerHTML = '';
+    var p = document.createElement('p');
+    p.className = 'placeholder';
+    p.textContent = msg;
+    outputEl.appendChild(p);
+  }
+
+  function looksLikeTestXml(text) {
+    return text && text.indexOf('<') !== -1 &&
+      (text.indexOf('<readingTest') !== -1 ||
+       text.indexOf('<fragment') !== -1 ||
+       text.indexOf('<question') !== -1);
+  }
+
+  // Попытка обработать текст как XML-тест
+  function tryProcess(text) {
+    if (!looksLikeTestXml(text)) return false;
+    var data = parseTest(text);
+    if (!data) return false;
+    handleParsed(data, null);
+    return true;
+  }
+
+  function handleParsed(data, sourceMsg) {
+    lastData = data;
+    lastText = formatTest(data, currentMode === 'withText');
+    inputEl.value = '';
+    renderOutput(lastText);
+    showStatus('Готово: найдено вопросов — ' + data.count + (sourceMsg ? ' (' + sourceMsg + ')' : ''));
+  }
+
+  // ---------- Загрузка XML-файла по ссылке ----------
+  function loadXmlFile(url) {
+    inputEl.value = '';
+    showPlaceholder('Загрузка файла...');
+    showStatus('Загрузка файла...');
+
+    var xhr = new XMLHttpRequest();
+    xhr.open('GET', url, true);
+    xhr.onload = function () {
+      if ((xhr.status >= 200 && xhr.status < 300) || xhr.status === 0) {
+        var data = parseTest(xhr.responseText);
+        if (data) {
+          handleParsed(data, 'файл загружен по ссылке');
+        } else {
+          lastText = xhr.responseText;
+          renderOutput(xhr.responseText);
+          showStatus('Файл загружен, но вопросы не распознаны — показан исходный текст', true);
+        }
+      } else {
+        showPlaceholder('Не удалось загрузить файл.');
+        showStatus('Ошибка загрузки: HTTP ' + xhr.status, true);
+      }
+    };
+    xhr.onerror = function () {
+      showPlaceholder('Не удалось загрузить файл.');
+      showStatus('Не удалось загрузить файл. Проверьте ссылку и доступность файла (CORS/https).', true);
+    };
+    xhr.send();
+  }
+
+  // ---------- Обработка параметров URL ----------
+  var xmlParam = getQueryParam('xml');
+
+  if (xmlParam && /^https?:\/\//i.test(xmlParam)) {
+    var urlPwd = getQueryParam('pwd');
+    if (urlPwd !== PASSWORD) {
+      var wrong = (urlPwd !== null && urlPwd !== '');
+      if (!authorize(wrong)) {
+        document.body.innerHTML = '<div class="denied">Доступ запрещён.<br>Обновите страницу и введите правильный пароль.</div>';
+        return;
+      }
+    }
+    loadXmlFile(xmlParam);
+  } else if (xmlParam) {
+    var data = parseTest(xmlParam);
+    if (data) {
+      handleParsed(data, 'XML получен из URL');
+    } else {
+      lastText = xmlParam;
+      renderOutput(xmlParam);
+      showStatus('XML из URL не распознан — показан как текст', true);
+    }
+  }
+
+  // ---------- Однострочное поле ввода: автообработка при вставке ----------
+  inputEl.addEventListener('input', function () {
+    if (tryProcess(inputEl.value)) return; // при успехе поле очищается внутри handleParsed
+  });
+
+  // ---------- Перетаскивание XML-файла в окно ----------
+  document.addEventListener('dragover', function (e) { e.preventDefault(); });
+  document.addEventListener('drop', function (e) {
+    e.preventDefault();
+    var file = e.dataTransfer.files && e.dataTransfer.files[0];
+    if (!file) return;
+    var reader = new FileReader();
+    reader.onload = function () {
+      if (!tryProcess(reader.result)) {
+        showStatus('Файл «' + file.name + '»: XML с вопросами не распознан', true);
+      }
+    };
+    reader.readAsText(file, 'utf-8');
+  });
+
+  // ---------- Кнопка «Вставить» ----------
+  document.getElementById('pasteBtn').addEventListener('click', function () {
+    if (navigator.clipboard && navigator.clipboard.readText) {
+      navigator.clipboard.readText().then(function (text) {
+        if (!tryProcess(text)) {
+          inputEl.value = text;
+          showStatus('Вставлено как текст: XML с вопросами не распознан', true);
+        }
+      }).catch(function () {
+        inputEl.focus();
+        showStatus('Браузер запретил чтение буфера — нажмите Ctrl+V в строке ввода', true);
+      });
+    } else {
+      inputEl.focus();
+      showStatus('Чтение буфера не поддерживается — нажмите Ctrl+V', true);
+    }
+  });
+
+  // ---------- Кнопка переключения режима ----------
+  function updateModeBtn() {
+    var withText = (currentMode === 'withText');
+    modeBtn.textContent = withText ? 'Скрыть текст фрагментов' : 'Показать текст фрагментов';
+    modeBtn.classList.toggle('active', withText);
+  }
+
+  modeBtn.addEventListener('click', function () {
+    if (!lastData) {
+      showStatus('Нет обработанного XML — сначала вставьте XML в строку ввода', true);
+      return;
+    }
+    currentMode = (currentMode === 'withText') ? 'answersOnly' : 'withText';
+    updateModeBtn();
+    lastText = formatTest(lastData, currentMode === 'withText');
+    renderOutput(lastText);
+    showStatus(currentMode === 'withText'
+      ? 'Режим: вопросы + текст фрагментов'
+      : 'Режим: только вопросы и ответы');
+  });
+
+  // ---------- Кнопки размера шрифта ----------
+  var fontSize = DEFAULT_FONT;
+  try {
+    var saved = parseInt(localStorage.getItem('xmlq-font-size'), 10);
+    if (!isNaN(saved) && saved >= MIN_FONT && saved <= MAX_FONT) fontSize = saved;
+  } catch (e) {}
+
+  function applyFont() {
+    outputEl.style.fontSize = fontSize + 'px';
+    try { localStorage.setItem('xmlq-font-size', fontSize); } catch (e) {}
+  }
+
+  document.getElementById('fontPlus').addEventListener('click', function () {
+    if (fontSize >= MAX_FONT) { showStatus('Максимальный размер шрифта — ' + MAX_FONT + 'px', true); return; }
+    fontSize = Math.min(MAX_FONT, fontSize + FONT_STEP);
+    applyFont();
+    showStatus('Размер шрифта: ' + fontSize + 'px');
+  });
+
+  document.getElementById('fontMinus').addEventListener('click', function () {
+    if (fontSize <= MIN_FONT) { showStatus('Минимальный размер шрифта — ' + MIN_FONT + 'px', true); return; }
+    fontSize = Math.max(MIN_FONT, fontSize - FONT_STEP);
+    applyFont();
+    showStatus('Размер шрифта: ' + fontSize + 'px');
+  });
+
+  document.getElementById('fontReset').addEventListener('click', function () {
+    fontSize = DEFAULT_FONT;
+    applyFont();
+    showStatus('Размер шрифта сброшен: ' + fontSize + 'px');
+  });
+
+  // ---------- Копирование ----------
+  function fallbackCopy() {
+    var ta = document.createElement('textarea');
+    ta.value = lastText;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    try {
+      document.execCommand('copy');
+      showStatus('Скопировано в буфер обмена');
+    } catch (e) {
+      showStatus('Не удалось скопировать', true);
+    }
+    document.body.removeChild(ta);
+  }
+
+  document.getElementById('copyBtn').addEventListener('click', function () {
+    if (!lastText) { showStatus('Результат пуст — копировать нечего', true); return; }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(lastText).then(function () {
+        showStatus('Скопировано в буфер обмена');
+      }).catch(fallbackCopy);
+    } else {
+      fallbackCopy();
+    }
+  });
+
+  applyFont();
+  updateModeBtn();
+})();
+</script>
+</body>
+</html>

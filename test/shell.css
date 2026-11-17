@@ -1,0 +1,197 @@
+:root {
+    --ts-bg: #0f172a;
+    --ts-card: #1e293b;
+    --ts-border: #334155;
+    --ts-fg: #e2e8f0;
+    --ts-muted: #94a3b8;
+    --ts-accent: #38bdf8;
+    --ts-danger: #f87171;
+    --ts-ok: #34d399;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+    margin: 0;
+    padding: 0;
+    min-height: 100%;
+    background: var(--ts-bg);
+    color: var(--ts-fg);
+    font: 15px/1.55 -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+}
+
+.ts-wrap {
+    max-width: 560px;
+    margin: 0 auto;
+    padding: 28px 18px 48px;
+}
+
+.ts-head {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 18px;
+}
+
+.ts-logo {
+    width: 44px; height: 44px;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 12px;
+    background: rgba(56, 189, 248, .12);
+    border: 1px solid rgba(56, 189, 248, .35);
+    font-size: 22px;
+}
+
+.ts-head h1 {
+    margin: 0;
+    font-size: 19px;
+    font-weight: 700;
+    letter-spacing: .2px;
+}
+
+.ts-sub {
+    margin: 2px 0 0;
+    font-size: 12px;
+    color: var(--ts-muted);
+}
+
+.ts-card {
+    background: var(--ts-card);
+    border: 1px solid var(--ts-border);
+    border-radius: 14px;
+    padding: 20px;
+}
+
+.ts-h2 {
+    margin: 0 0 6px;
+    font-size: 17px;
+    font-weight: 700;
+}
+
+.ts-text { margin: 0 0 6px; }
+.ts-muted {
+    margin: 0;
+    color: var(--ts-muted);
+    font-size: 13px;
+    word-break: break-all;
+}
+
+.ts-icon { font-size: 26px; margin-bottom: 8px; }
+.ts-icon-error { color: var(--ts-danger); }
+
+.ts-loader {
+    width: 26px; height: 26px;
+    margin-bottom: 12px;
+    border: 3px solid var(--ts-border);
+    border-top-color: var(--ts-accent);
+    border-radius: 50%;
+    animation: ts-spin .9s linear infinite;
+}
+
+@keyframes ts-spin { to { transform: rotate(360deg); } }
+
+.ts-code {
+    margin: 10px 0;
+    padding: 10px 12px;
+    border-radius: 8px;
+    border: 1px solid var(--ts-border);
+    background: rgba(15, 23, 42, .6);
+    color: var(--ts-accent);
+    font: 12px/1.5 ui-monospace, Consolas, monospace;
+    white-space: pre-wrap;
+    word-break: break-all;
+}
+
+.ts-task {
+    padding-bottom: 16px;
+    margin-bottom: 16px;
+    border-bottom: 1px solid var(--ts-border);
+}
+
+.ts-badge {
+    display: inline-block;
+    margin-bottom: 8px;
+    padding: 3px 10px;
+    border-radius: 999px;
+    background: rgba(56, 189, 248, .12);
+    border: 1px solid rgba(56, 189, 248, .35);
+    color: var(--ts-accent);
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.ts-form { display: flex; flex-direction: column; }
+
+.ts-label {
+    margin-bottom: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--ts-muted);
+    text-transform: uppercase;
+    letter-spacing: .4px;
+}
+
+.ts-input {
+    width: 100%;
+    margin-bottom: 14px;
+    padding: 11px 13px;
+    border-radius: 10px;
+    border: 1px solid var(--ts-border);
+    background: #0f172a;
+    color: var(--ts-fg);
+    font-size: 15px;
+    outline: none;
+    transition: border-color .15s, box-shadow .15s;
+}
+
+.ts-input:focus {
+    border-color: var(--ts-accent);
+    box-shadow: 0 0 0 3px rgba(56, 189, 248, .15);
+}
+
+.ts-error {
+    margin: -4px 0 12px;
+    color: var(--ts-danger);
+    font-size: 13px;
+}
+
+.ts-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 12px 18px;
+    border-radius: 10px;
+    border: 1px solid var(--ts-border);
+    background: #334155;
+    color: var(--ts-fg);
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background .15s, border-color .15s, transform .06s;
+}
+
+.ts-btn:hover:not(:disabled) { background: #3f4d63; }
+.ts-btn:active:not(:disabled) { transform: translateY(1px); }
+
+.ts-btn-primary {
+    background: var(--ts-accent);
+    border-color: var(--ts-accent);
+    color: #082f49;
+}
+
+.ts-btn-primary:hover:not(:disabled) { background: #7dd3fc; border-color: #7dd3fc; }
+
+.ts-btn:disabled {
+    opacity: .5;
+    cursor: not-allowed;
+}
+
+.ts-btn-ghost { margin-top: 12px; }
+
+.ts-foot {
+    margin-top: 20px;
+    text-align: center;
+    font-size: 12px;
+    color: #64748b;
+}

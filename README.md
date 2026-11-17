@@ -8,14 +8,14 @@
 https://tregubovvn.github.io/mt_v3/index.html
 ```
 
-Тестирование остаётся на отдельных страницах — редактор только готовит XML и
-собирает ссылку на нужное приложение:
+Тестирование встроено в mt_v3 — единая точка входа `test/index.html?file=…`
+(одно окно ФИО + Группа, тип определяется по корню XML):
 
 | Тип | Корень XML | Редактор формы | Тестирование |
 |---|---|---|---|
-| Reading Test | `<readingTest>` | тема, фрагменты, вопросы choice/input | `rt_v2/index.html?file=…` |
-| Moodle Quiz | `<quiz>` | вопросы multichoice / truefalse / shortanswer / numerical / description | `mt_v2/index.html?name=…` |
-| Formula Test | `<formulas>` | формулы LaTeX, условные обозначения, предпросмотр и фрагменты | `ft/index.html?file=…` |
+| Reading Test | `<readingTest>` | тема, фрагменты, вопросы choice/input | `test/rt/index.html` |
+| Moodle Quiz | `<quiz>` | вопросы multichoice / truefalse / shortanswer / numerical / description | `test/mt/index.html` |
+| Formula Test | `<formulas>` | формулы LaTeX, условные обозначения, предпросмотр и фрагменты | `test/ft/index.html` |
 
 ## Что единое, а что разное
 
