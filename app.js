@@ -486,7 +486,7 @@
         return '';
     }
 
-    async function askDeepSeek() {
+    async function askDeepSeek(overrideXml) {
         if (state.busy) {
             toast('Запрос к DeepSeek уже выполняется — дождитесь ответа или нажмите «Отменить»');
             return;
@@ -503,7 +503,7 @@
             toast('У режима «' + (active ? active.name : '—') + '» пустой промпт — выберите другой в «Режимах» или заполните текст', true);
             return;
         }
-        const xml = els.xmlEditor.value.trim();
+        const xml = (typeof overrideXml === 'string' && overrideXml.trim() ? overrideXml : els.xmlEditor.value).trim();
         if (!xml) {
             toast('XML пуст', true);
             return;
@@ -534,13 +534,13 @@
             const reply = data && data.choices && data.choices[0] && data.choices[0].message
                 ? data.choices[0].message.content : '';
             if (!reply) throw new Error('пустой ответ модели');
-            showDsReply(reply);
             const extracted = extractXml(reply, state.adapter.rootTag);
+            showDsReply(reply, !extracted);
             if (!extracted) {
                 const preview = String(reply).replace(/\s+/g, ' ').trim();
                 const short = preview.length > 160 ? preview.slice(0, 160) + '…' : preview;
                 throw new Error('в ответе нет <' + state.adapter.rootTag + '> — начало ответа: «' + short +
-                    '». Полный ответ — в панели «Запрос к DeepSeek»');
+                    '». Ответ можно отредактировать в панели «Запрос к DeepSeek» и отправить снова');
             }
             els.xmlEditor.value = extracted;
             setStatus('Ответ DeepSeek применён');
@@ -569,15 +569,35 @@
         els.dsRequestMeta.textContent = 'режим «' + modeName + '» · ' + new Date().toLocaleTimeString('ru-RU');
         els.dsRequestText.textContent = text;
         els.dsReplyTitle.hidden = true;
-        els.dsReplyText.hidden = true;
-        els.dsReplyText.textContent = '';
+        els.dsReplyEdit.hidden = true;
+        els.dsRetryBtn.hidden = true;
+        els.dsReplyEdit.value = '';
     }
 
-    function showDsReply(reply) {
-        if (!els.dsReplyText) return;
+    // Ответ модели показывается в редактируемом поле: если XML не извлекся,
+    // можно поправить текст (например, ответить на вопрос модели) и отправить снова.
+    function showDsReply(reply, failed) {
+        if (!els.dsReplyEdit) return;
         els.dsReplyTitle.hidden = false;
-        els.dsReplyText.hidden = false;
-        els.dsReplyText.textContent = String(reply || '').trim().slice(0, 2000);
+        els.dsReplyEdit.hidden = false;
+        els.dsRetryBtn.hidden = false;
+        els.dsReplyEdit.value = String(reply || '');
+        els.dsRetryBtn.disabled = state.busy;
+        if (failed) {
+            els.dsReplyEdit.focus();
+            els.dsReplyEdit.scrollTop = 0;
+        }
+    }
+
+    // Повторная отправка: отредактированный текст уходит в DeepSeek как новое задание.
+    function resendDsReply() {
+        const text = (els.dsReplyEdit.value || '').trim();
+        if (!text) {
+            toast('Поле ответа пусто — нечего отправлять', true);
+            els.dsReplyEdit.focus();
+            return;
+        }
+        askDeepSeek(text);
     }
 
     let busyTimer = null;
@@ -586,6 +606,7 @@
         const overlay = els.busyOverlay;
         overlay.classList.toggle('show', busy);
         if (els.btnAiCancel) els.btnAiCancel.disabled = !busy;
+        if (els.dsRetryBtn) els.dsRetryBtn.disabled = busy;
         if (busy) {
             const started = Date.now();
             els.busyText.textContent = text || 'Обработка…';
@@ -884,7 +905,8 @@
         }
         els.btnApply.addEventListener('click', applyXml);
         els.btnPrompts.addEventListener('click', () => state.prompts.openDialog());
-        els.btnAi.addEventListener('click', askDeepSeek);
+        els.btnAi.addEventListener('click', () => askDeepSeek());
+        els.dsRetryBtn.addEventListener('click', resendDsReply);
         els.btnAiCancel.addEventListener('click', () => {
             if (aiController) {
                 aiController.abort();
@@ -1034,7 +1056,7 @@
             'flCheck', 'flHeader', 'flCrush', 'flRandom',
             'gistModal', 'gistRef', 'btnGistLoad',
             'busyOverlay', 'busyText', 'busyTimer', 'btnAiCancel',
-            'dsRequest', 'dsRequestMeta', 'dsRequestText', 'dsReplyTitle', 'dsReplyText',
+            'dsRequest', 'dsRequestMeta', 'dsRequestText', 'dsReplyTitle', 'dsReplyEdit', 'dsRetryBtn',
         ].forEach(name => { els[name] = id(name); });
     }
 
