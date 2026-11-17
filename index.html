@@ -18,7 +18,7 @@
         };
     </script>
     <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js"></script>
-    <link rel="stylesheet" href="styles.css?v=13">
+    <link rel="stylesheet" href="styles.css?v=14">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
 </head>
 <body>
@@ -188,6 +188,9 @@
                 </div>
             </div>
 
+            <!-- Задание изменено после публикации: ссылка снимается до новой публикации -->
+            <p class="pub-stale" id="pubStale" hidden>⚠ Задание изменено после публикации — ссылка снята. Опубликуйте задание заново.</p>
+
             <div class="flags">
                 <label class="check"><input type="checkbox" id="flCheck"> CheckMode</label>
                 <label class="check"><input type="checkbox" id="flHeader"> ShowHeader</label>
@@ -196,6 +199,17 @@
             </div>
 
             <p class="hint" id="pubStatus"></p>
+
+            <!-- Единый лог публикаций (хранится в Gist, файл publish_log.json) -->
+            <div class="pub-log">
+                <div class="pub-log-head">
+                    <span>📋 Опубликованные задания</span>
+                    <button type="button" class="btn btn-sm" id="btnPubLogRefresh" title="Обновить лог из Gist">⟳</button>
+                </div>
+                <div class="pub-log-list" id="pubLogList">
+                    <p class="hint">Загрузка лога…</p>
+                </div>
+            </div>
         </div>
         <div class="modal-foot">
             <button type="button" class="btn" data-close>Закрыть</button>
@@ -207,13 +221,13 @@
 <div class="modal" id="gistModal">
     <div class="modal-box">
         <div class="modal-head">
-            <h3>Загрузить из Gist</h3>
+            <h3>Загрузить задание</h3>
             <button type="button" class="icon-btn" data-close aria-label="Закрыть">✕</button>
         </div>
         <div class="modal-body">
-            <label class="field"><span class="label">Ссылка на Gist, raw-ссылка или ID</span>
-                <input class="input mono" id="gistRef" placeholder="https://gist.github.com/user/…"></label>
-            <p class="hint">Приватные Gist требуют GitHub Token (⚙ Настройки).</p>
+            <label class="field"><span class="label">Ссылка на задание, Gist, raw-ссылка или ID</span>
+                <input class="input mono" id="gistRef" placeholder="https://tregubovvn.github.io/mt_v3/test/index.html?file=…"></label>
+            <p class="hint">Можно вставить ссылку на опубликованное задание — XML берётся из него. Приватные Gist требуют GitHub Token (⚙ Настройки).</p>
         </div>
         <div class="modal-foot">
             <button type="button" class="btn" data-close>Отмена</button>
@@ -250,6 +264,6 @@
 <script src="editors/mt.js?v=10"></script>
 <script src="editors/ft.js?v=10"></script>
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
-<script src="app.js?v=14"></script>
+<script src="app.js?v=16"></script>
 </body>
 </html>

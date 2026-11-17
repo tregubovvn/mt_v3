@@ -497,6 +497,53 @@ body.resizing { cursor: col-resize; user-select: none; }
     margin: 0.4rem 0;
 }
 
+/* ------------- Публикация: ссылка снята и лог публикаций ------------- */
+.pub-stale {
+    margin: 0.35rem 0 0.6rem;
+    padding: 8px 12px;
+    border: 1px solid rgba(251, 191, 36, .45);
+    border-left: 4px solid #fbbf24;
+    border-radius: var(--radius);
+    background: rgba(251, 191, 36, .08);
+    color: #fbbf24;
+    font-size: 0.8rem;
+}
+
+.pub-log {
+    margin-top: 1rem;
+    border-top: 1px solid var(--border);
+    padding-top: 0.7rem;
+}
+.pub-log-head {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 0.5rem;
+    font-size: 0.78rem; font-weight: 700; color: var(--fg-muted);
+    text-transform: uppercase; letter-spacing: .04em;
+    margin-bottom: 0.5rem;
+}
+.pub-log-list { max-height: 240px; overflow: auto; }
+.pub-log-row {
+    display: flex; align-items: flex-start; gap: 0.5rem;
+    padding: 0.5rem 0.6rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--bg);
+    margin-bottom: 0.4rem;
+}
+.pub-log-info { flex: 1 1 auto; min-width: 0; }
+.pub-log-title {
+    font-size: 0.82rem; font-weight: 600; color: var(--fg);
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.pub-log-meta { font-size: 0.72rem; color: var(--fg-muted); margin-top: 2px; }
+.pub-log-link {
+    display: block;
+    font-size: 0.7rem; color: var(--accent);
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    text-decoration: none;
+}
+.pub-log-link:hover { text-decoration: underline; }
+
 /* --------------------------------- Тост --------------------------------- */
 
 .toast {
