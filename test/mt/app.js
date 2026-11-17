@@ -4,6 +4,12 @@
 // Константы
 // =============================================================
 const CRUSH_MAX_ERRORS = 3; // максимум ошибок за одну сессию в CrushMode
+
+// Типы вопросов Moodle XML, которые тестирование проводит и проверяет.
+// description и category — не вопросы (текст-инструкция и контейнер),
+// остальные (match, essay, dragdrop и т.п.) пропускаются.
+const KNOWN_QUESTION_TYPES = ['multichoice', 'truefalse', 'shortanswer', 'numerical', 'cloze', 'multianswer'];
+
 const LETTERS = ['А', 'Б', 'В', 'Г', 'Д', 'Е', 'Ж', 'З', 'И', 'К'];
 const YANDEX_API_PREFIX = 'https://cloud-api.yandex.net/v1/disk/public/resources/download?public_key=';
 const STORAGE_KEY_STUDENT = 'quizStudent';
@@ -511,7 +517,19 @@ function parseMoodleXML(xmlContent) {
 
     for (let node of questionNodes) {
         const type = node.getAttribute('type') || 'multichoice';
-        if (type === 'category') continue;   // служебный контейнер Moodle
+
+        // Служебный контейнер Moodle (категория) — не вопрос
+        if (type === 'category') continue;
+
+        // Описание (description) — не вопрос, а текст-инструкция в задании:
+        // в тестировании такие блоки пропускаются и в счётчики не попадают
+        if (type === 'description') continue;
+
+        // Типы, которые тестирование умеет проводить и проверять
+        if (!KNOWN_QUESTION_TYPES.includes(type)) {
+            console.warn('Пропущен неподдерживаемый тип вопроса: ' + type);
+            continue;
+        }
 
         // Название вопроса из тега <name> (для режима HeaderShow)
         let questionName = '';
@@ -529,24 +547,14 @@ function parseMoodleXML(xmlContent) {
             if (textNodes.length > 0) questionText = textNodes[0].textContent.trim();
         }
 
-        // Description — вопрос-описание без ответа: текст в <questiontext>,
-        // выводится как обычный текст, проверке не подлежит
-        if (type === 'description') {
-            // (текст уже взят из <questiontext>; отдельного тега <description> в Moodle нет)
-            if (!questionText) continue;
-            questions.push({
-                name: questionName, text: processHtmlContent(questionText),
-                type: 'description', single: true, answers: [], clozeBlanks: null,
-                isCorrect: false, _checked: false,
-            });
-            continue;
-        }
+        // Description — пропущен выше (не вопрос, а текст-инструкция)
 
         if (!questionText) continue;
         questionText = processHtmlContent(questionText);
 
         // ---- Cloze: пропуски {...:Тип:ответ%вес%альт~неверный...} внутри текста ----
-        if (type === 'cloze') {
+        // В Moodle это тип multianswer; пропуски могут быть и {1:SHORTANSWER:=…}
+        if (type === 'cloze' || type === 'multianswer') {
             const blanks = parseClozeBlanks(questionText);
             if (!blanks.length) continue;
             questions.push({
@@ -575,8 +583,10 @@ function parseMoodleXML(xmlContent) {
         }
 
         // ---- Одиночный / множественный выбор (single=true/false) ----
+        // Moodle хранит признак в элементе <single>. Если его нет — определяем
+        // по числу верных вариантов: несколько верных => множественный выбор.
         const singleEl = node.getElementsByTagName('single')[0];
-        const single = !singleEl || (singleEl.textContent || 'true').trim() !== 'false';
+        const singleDeclared = singleEl ? (singleEl.textContent || 'true').trim() !== 'false' : null;
 
         // Варианты ответа
         const answers = [];
@@ -597,14 +607,17 @@ function parseMoodleXML(xmlContent) {
 
         if (answers.length === 0) continue;
 
-        // shortanswer / numerical: все непустые варианты — правильные ответы
-        // (эталонные формулировки; проверяются вводом с клавиатуры)
+        // shortanswer / numerical: все непустые варианты — эталонные ответы
+        // (студент вводит ответ с клавиатуры, вариантами они не показываются)
         let qType = type;
         if (type === 'shortanswer' || type === 'numerical') {
             answers.forEach(a => { a.isCorrect = true; });
-        } else if (type !== 'multichoice') {
-            // неизвестный тип с вариантами трактуем как multichoice
-            qType = 'multichoice';
+        }
+
+        // Признак «множественный выбор»: из XML, а если его нет — по числу верных
+        let single = singleDeclared;
+        if (single === null) {
+            single = answers.filter(a => a.isCorrect).length <= 1;
         }
 
         questions.push({
@@ -620,46 +633,117 @@ function parseMoodleXML(xmlContent) {
 // MCMS      — выпадающий список: "верный%100%alt~неверный%0"
 // T/F/MW    — текстовый пропуск: "ответ|альтернатива:фидбек"
 // NUMERICAL — числовой пропуск:  "число&допуск|число2:фидбек"
-const CLOZE_BLANK_RE = /\{\.\.\.:([^{}]+)\}/g;
-const CLOZE_TYPES = ['MCMS', 'T', 'F', 'MW', 'NUMERICAL'];
+const CLOZE_BLANK_RE = /{(?:\.\.\.|\d+):([^{}]+)}/g;
+// То же самое, но с захватом всей конструкции — для разбиения текста на части
+const CLOZE_BLANK_SPLIT_RE = /({(?:\.\.\.|\d+):[^{}]+})/g;
+const CLOZE_ALIASES = {
+    MCMS: 'MCMS', MCS: 'MCMS', MULTICHOICE: 'MCMS', MULTICHOICE_H: 'MCMS', MULTICHOICE_V: 'MCMS', MULTICHOICE_S: 'MCMS',
+    T: 'TEXT', F: 'TEXT', MW: 'TEXT', SHORTANSWER: 'TEXT', SA: 'TEXT', TRUEFALSE: 'TEXT',
+    NUMERICAL: 'NUMERICAL', NM: 'NUMERICAL',
+};
+
+// Разбор одного варианта MCMS: поддерживаются оба формата Moodle
+//   %100%Текст~%0%Текст     (процент перед текстом)
+//   Текст%100%~Текст%0%     (процент после текста)
+//   =Текст~Текст            (знак «=» у верного варианта)
+function parseClozeChoice(chunk) {
+    let t = String(chunk || '').trim();
+    let percent = null;
+    let m = t.match(/^%(\d+(?:[.,]\d+)?)%([\s\S]*)$/);
+    if (m) {
+        percent = parseFloat(String(m[1]).replace(',', '.'));
+        t = m[2];
+    } else if ((m = t.match(/^([\s\S]*?)%(\d+(?:[.,]\d+)?)%\s*$/))) {
+        percent = parseFloat(String(m[2]).replace(',', '.'));
+        t = m[1];
+    }
+    let eq = false;
+    if (t.trim().startsWith('=')) {
+        eq = true;
+        t = t.trim().slice(1);
+    }
+    t = t.replace(/^~+/, '').trim();
+    const correct = percent !== null ? percent > 0 : eq;
+    return { text: t, correct };
+}
 
 function parseClozeBlanks(text) {
     const blanks = [];
     let m;
     CLOZE_BLANK_RE.lastIndex = 0;
     while ((m = CLOZE_BLANK_RE.exec(text)) !== null) {
-        const segs = m[1].split(':');
-        let type = (segs[0] || '').trim().toUpperCase();
-        if (!CLOZE_TYPES.includes(type)) type = 'MCMS';
-        const rest = segs.slice(1).join(':');
-        let answerPart = rest, feedback = '';
-        const fc = answerPart.lastIndexOf(':');
-        if (fc >= 0) { feedback = answerPart.slice(fc + 1); answerPart = answerPart.slice(0, fc); }
+        const inner = m[1];
+        const firstColon = inner.indexOf(':');
+        const rawType = (firstColon >= 0 ? inner.slice(0, firstColon) : inner).trim().toUpperCase();
+        const type = CLOZE_ALIASES[rawType] || 'MCMS';
+        let spec = firstColon >= 0 ? inner.slice(firstColon + 1) : '';
+        let feedback = '';
+
+        // Отзыв отделяется последним ':' — только если это не числовой допуск
+        if (type === 'NUMERICAL') {
+            const parts = spec.split(':');
+            if (parts.length > 2) feedback = parts.pop();
+            spec = parts.join(':');
+        } else {
+            const c = spec.lastIndexOf(':');
+            if (c >= 0) { feedback = spec.slice(c + 1); spec = spec.slice(0, c); }
+        }
 
         const answers = [];
         if (type === 'MCMS') {
-            answerPart.split('~').forEach((group, gi) => {
+            spec.split('~').forEach(group => {
                 group.split('|').forEach(chunk => {
-                    const mm = chunk.match(/^(.*?)%(\d+)%(.*)$/s);
-                    const t = mm ? mm[1].trim() : chunk.trim();
-                    if (t) answers.push({ text: t, correct: gi === 0 });
+                    const a = parseClozeChoice(chunk);
+                    if (a.text) answers.push(a);
                 });
             });
         } else if (type === 'NUMERICAL') {
-            answerPart.split('|').forEach(a => {
-                const amp = a.indexOf('&');
-                const t = (amp >= 0 ? a.slice(0, amp) : a).trim();
-                if (t) answers.push({ text: t, tolerance: amp >= 0 ? (parseFloat(a.slice(amp + 1)) || 0) : 0, correct: true });
+            spec.split('~').forEach(raw => {
+                let seg = raw.trim().replace(/^=/, '');
+                if (!seg) return;
+                let val = seg, tol = '';
+                const amp = seg.indexOf('&');
+                if (amp >= 0) {
+                    val = seg.slice(0, amp); tol = seg.slice(amp + 1);
+                } else {
+                    const c = seg.indexOf(':');
+                    if (c >= 0) { val = seg.slice(0, c); tol = seg.slice(c + 1); }
+                }
+                val = val.trim();
+                if (val) {
+                    answers.push({
+                        text: val,
+                        tolerance: parseFloat(String(tol).replace(',', '.')) || 0,
+                        correct: true,
+                    });
+                }
             });
         } else {
-            answerPart.split('|').forEach(a => {
-                const t = a.trim();
-                if (t) answers.push({ text: t, correct: true });
+            // Текстовый пропуск: «=верно» — правильный, «*неверно» — нет
+            spec.split('~').forEach(raw => {
+                let t = raw.trim();
+                let correct = true;
+                if (t.startsWith('=')) t = t.slice(1);
+                else if (t.startsWith('*')) { correct = false; t = t.slice(1); }
+                t = t.trim();
+                if (t) answers.push({ text: t, correct });
             });
         }
         if (answers.some(a => a.correct)) blanks.push({ type, answers, feedback });
     }
     return blanks;
+}
+
+// Проверка числового ответа (numerical): число с допуском из <tolerance>
+function matchNumeric(userStr, candidates) {
+    const toNum = s => parseFloat(String(s == null ? '' : s).trim().replace(',', '.'));
+    const uv = toNum(userStr);
+    if (!Number.isFinite(uv)) return false;
+    return candidates.some(c => {
+        const cv = toNum(c.text);
+        if (!Number.isFinite(cv)) return false;
+        return Math.abs(uv - cv) <= (Number.isFinite(c.tolerance) ? c.tolerance : 0) + 1e-9;
+    });
 }
 
 // Проверка строкового ответа: совпадение с одним из эталонов (без учёта регистра,
@@ -773,7 +857,10 @@ function evaluateQuestion(q, idx) {
         case 'numerical': {
             const t = (userTextAnswers[idx] || '').trim();
             if (!t) return { answered: false, correct: false };
-            return { answered: true, correct: matchShortAnswer(t, q.answers) };
+            const ok = q.type === 'numerical'
+                ? matchNumeric(t, q.answers)
+                : matchShortAnswer(t, q.answers);
+            return { answered: true, correct: ok };
         }
         case 'cloze': {
             let allCorrect = true;
@@ -956,8 +1043,10 @@ function renderQuestion() {
         card.appendChild(buildTextInputAnswer(q, idx, locked));
     }
 
-    // Варианты ответа (multichoice / truefalse)
-    if (q.answers.length > 0) {
+    // Варианты ответа показываем только для выбора (multichoice / truefalse).
+    // У shortanswer / numerical «ответы» — это эталоны: их не показываем,
+    // студент вводит ответ в поле выше.
+    if ((q.type === 'multichoice' || q.type === 'truefalse') && q.answers.length > 0) {
         const multi = q.type === 'multichoice' && !q.single;
         q.answers.forEach((answer, i) => {
             const option = document.createElement('div');
@@ -1029,7 +1118,16 @@ function buildTextInputAnswer(q, idx, locked) {
     const wrap = document.createElement('div');
     wrap.className = 'text-answer-wrap';
     const input = document.createElement('input');
-    input.type = q.type === 'numerical' ? 'number' : 'text';
+    if (q.type === 'numerical') {
+        // Не number: браузер отвергал бы запятую и пустое значение на промежуточном вводе.
+        // Принимаем и «3,14», и «3.14», и отрицательные; сравнение — числовое.
+        input.type = 'text';
+        input.inputMode = 'decimal';
+        input.autocomplete = 'off';
+    } else {
+        input.type = 'text';
+        input.autocomplete = 'off';
+    }
     input.step = 'any';
     input.className = 'text-answer-input';
     input.placeholder = q.type === 'numerical' ? 'Введите число' : 'Введите ответ';
@@ -1046,10 +1144,12 @@ function buildTextInputAnswer(q, idx, locked) {
         updateNavigation();
     });
     wrap.appendChild(input);
-    if (q.type === 'shortanswer') {
+    if (q.type === 'shortanswer' || q.type === 'numerical') {
         const hint = document.createElement('div');
         hint.className = 'text-answer-hint';
-        hint.textContent = 'Допускаются варианты написания, указанные в эталонных ответах';
+        hint.textContent = q.type === 'numerical'
+            ? 'Введите число (можно с запятой и с допуском из задания)'
+            : 'Регистр, лишние пробелы и ё/е не важны';
         wrap.appendChild(hint);
     }
     return wrap;
@@ -1057,15 +1157,16 @@ function buildTextInputAnswer(q, idx, locked) {
 
 // Сборка HTML текста cloze-вопроса с интерактивными пропусками
 function buildClozeQuestionHtml(q, container) {
-    const parts = String(q.text || '').split(/(\{\.\.\.[^{}]*\})/g);
+    const parts = String(q.text || '').split(CLOZE_BLANK_SPLIT_RE);
     let bi = 0;
     parts.forEach(part => {
-        const m = part.match(/^\{\.\.\.:([^{}]+)\}$/);
+        const m = part.match(/^{(?:\.\.\.|\d+):([^{}]+)}$/);
         if (!m) {
             if (part) container.appendChild(renderTextWithMath(part));
             return;
         }
         const blank = q.clozeBlanks[bi];
+        const blankIndex = bi;   // важно: замыкание в обработчиках должно помнить номер пропуска
         const span = document.createElement('span');
         span.className = 'cloze-blank';
         span.dataset.bi = bi;
@@ -1090,7 +1191,7 @@ function buildClozeQuestionHtml(q, container) {
                     const okHere = blank.answers.some(a => a.correct && a.text === sel.value);
                     sel.classList.add(okHere ? 'correct' : 'incorrect');
                 }
-                sel.addEventListener('change', () => saveClozeValue(sel, bi));
+                sel.addEventListener('change', () => saveClozeValue(sel, blankIndex));
                 span.appendChild(sel);
             } else {
                 const inp = document.createElement('input');
@@ -1104,7 +1205,7 @@ function buildClozeQuestionHtml(q, container) {
                     const okHere = matchShortAnswer(inp.value, blank.answers);
                     inp.classList.add(okHere ? 'correct' : 'incorrect');
                 }
-                inp.addEventListener('input', () => saveClozeValue(inp, bi));
+                inp.addEventListener('input', () => saveClozeValue(inp, blankIndex));
                 span.appendChild(inp);
             }
         }
