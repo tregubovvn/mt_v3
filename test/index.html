@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Тестирование — единое окно</title>
+<link rel="stylesheet" href="shell.css?v=1">
+</head>
+<body>
+<div class="ts-wrap">
+
+    <header class="ts-head">
+        <div class="ts-logo">🧪</div>
+        <div>
+            <h1>Тестирование</h1>
+            <p class="ts-sub">Reading Test · Moodle Quiz · Formula Test</p>
+        </div>
+    </header>
+
+    <!-- Состояние: загрузка задания по ссылке -->
+    <section class="ts-card" id="stateLoading">
+        <div class="ts-loader"></div>
+        <p class="ts-text">Загрузка задания по ссылке…</p>
+        <p class="ts-muted" id="loadUrlText"></p>
+    </section>
+
+    <!-- Состояние: ошибка загрузки -->
+    <section class="ts-card" id="stateError" hidden>
+        <div class="ts-icon ts-icon-error">⚠</div>
+        <h2 class="ts-h2">Задание не загрузилось</h2>
+        <p class="ts-text" id="errorText"></p>
+        <p class="ts-muted" id="errorUrl"></p>
+        <button type="button" class="ts-btn ts-btn-ghost" id="btnRetry">Повторить</button>
+    </section>
+
+    <!-- Состояние: ссылка не указана -->
+    <section class="ts-card" id="stateNoLink" hidden>
+        <div class="ts-icon">🔗</div>
+        <h2 class="ts-h2">Нужна ссылка на задание</h2>
+        <p class="ts-text">Страница открывается со ссылкой на XML-файл задания:</p>
+        <pre class="ts-code" id="noLinkSample"></pre>
+        <p class="ts-muted">Задания загружаются только по ссылке — файл с диска не выбирается.</p>
+    </section>
+
+    <!-- Состояние: задание загружено, ввод ФИО и группы -->
+    <section class="ts-card" id="stateReady" hidden>
+        <div class="ts-task">
+            <span class="ts-badge" id="typeBadge">—</span>
+            <h2 class="ts-h2" id="taskTopic">—</h2>
+            <p class="ts-muted" id="taskInfo"></p>
+        </div>
+
+        <form class="ts-form" id="nameForm" novalidate>
+            <label class="ts-label" for="fio">ФИО</label>
+            <input class="ts-input" type="text" id="fio" autocomplete="name"
+                   placeholder="Иванов Иван Иванович" spellcheck="false">
+
+            <label class="ts-label" for="group">Группа</label>
+            <input class="ts-input" type="text" id="group" autocomplete="off"
+                   placeholder="МЕНЖ" spellcheck="false">
+
+            <p class="ts-error" id="nameError" hidden></p>
+
+            <button class="ts-btn ts-btn-primary" type="submit" id="btnStart" disabled>Начать тест</button>
+        </form>
+    </section>
+
+    <footer class="ts-foot">mt_v3 · единое окно тестирования</footer>
+</div>
+
+<script src="../vendor/xml.js?v=1"></script>
+<script src="shell.js?v=2"></script>
+</body>
+</html>

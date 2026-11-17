@@ -1,0 +1,120 @@
+/* Единое окно результатов для всех видов тестирования (rt · mt · ft) */
+
+.mt3r-host {
+    display: block;
+    width: 100%;
+}
+
+.mt3r-block {
+    margin: 0 0 16px;
+    padding: 16px 18px;
+    border: 1px solid #334155;
+    border-radius: 12px;
+    background: #1e293b;
+    color: #e2e8f0;
+    text-align: left;
+}
+
+.mt3r-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 6px 0;
+    border-bottom: 1px dashed rgba(148, 163, 184, .18);
+    font-size: 15px;
+    line-height: 1.45;
+}
+
+.mt3r-row:last-child { border-bottom: 0; }
+
+.mt3r-label {
+    color: #94a3b8;
+    font-weight: 600;
+}
+
+.mt3r-value { font-weight: 600; }
+
+.mt3r-title {
+    margin: 0 0 6px;
+    font-size: 16px;
+    font-weight: 700;
+    color: #e2e8f0;
+}
+
+.mt3r-note {
+    margin: 0 0 10px;
+    font-size: 13px;
+    line-height: 1.5;
+    color: #94a3b8;
+}
+
+.mt3r-input {
+    width: 100%;
+    box-sizing: border-box;
+    margin: 4px 0 10px;
+    padding: 10px 12px;
+    border-radius: 10px;
+    border: 1px solid #334155;
+    background: #0f172a;
+    color: #e2e8f0;
+    font-size: 15px;
+    outline: none;
+}
+
+.mt3r-input:focus {
+    border-color: #38bdf8;
+    box-shadow: 0 0 0 3px rgba(56, 189, 248, .15);
+}
+
+.mt3r-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 11px 16px;
+    border-radius: 10px;
+    border: 1px solid #38bdf8;
+    background: #38bdf8;
+    color: #082f49;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.mt3r-btn:hover:not(:disabled) { background: #7dd3fc; border-color: #7dd3fc; }
+.mt3r-btn:disabled { opacity: .6; cursor: not-allowed; }
+
+.mt3r-status {
+    margin-top: 10px;
+    font-size: 13px;
+    color: #94a3b8;
+}
+
+.mt3r-status.error { color: #f87171; }
+.mt3r-status.ok { color: #34d399; }
+
+.mt3r-item {
+    margin-top: 10px;
+    padding: 10px 12px;
+    border-radius: 10px;
+    background: rgba(16, 185, 129, .08);
+    border: 1px solid rgba(16, 185, 129, .28);
+}
+
+.mt3r-item-status {
+    font-size: 12px;
+    font-weight: 700;
+    color: #34d399;
+    margin-bottom: 4px;
+}
+
+.mt3r-item-text {
+    font-size: 14px;
+    line-height: 1.5;
+    margin-bottom: 4px;
+}
+
+.mt3r-answer {
+    font-size: 14px;
+    line-height: 1.5;
+    color: #cbd5e1;
+}

@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Formula Builder — Проверка знаний формул</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="../shared/results.css?v=1">
+</head>
+<body>
+    <div class="bg-mesh"></div>
+    <div class="grid-overlay"></div>
+
+    <div id="welcomeScreen" class="screen active">
+        <div class="min-h-screen flex items-center justify-center p-4">
+            <div class="card max-w-lg w-full fade-in">
+                <div class="text-center mb-8">
+                    <h1 class="title-display text-4xl md:text-5xl font-bold mb-3">Formula<span style="color: var(--accent)">Builder</span></h1>
+                    <p class="text-lg" style="color: var(--muted)">Проверка знаний формул</p>
+                </div>
+                <div class="space-y-6">
+                    <div class="space-y-4">
+                        <div><label class="block text-sm font-medium mb-2" style="color: var(--muted)">ФИО</label><input type="text" id="lastName" class="input-field" placeholder="Иванов"></div>
+                        <div><label class="block text-sm font-medium mb-2" style="color: var(--muted)">Группа</label><input type="text" id="firstName" class="input-field" placeholder="МЕНЖ" value="МЕНЖ"></div>
+                    </div>
+
+                    <div>
+                        <button id="startBtn" class="btn btn-primary w-full text-lg" disabled>Начать тест<svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3"/></svg></button>
+                        <div id="validationMessage" class="validation-message"></div>
+                    </div>
+                    
+                    <div class="pt-4 border-t" style="border-color: var(--border)">
+                    <p class="text-sm font-medium mb-3" style="color: var(--muted)">Загрузить формулы</p>
+
+                        <div class="url-input-group">
+                                <input type="url" id="urlInput" class="input-field" placeholder="Ссылка (Яндекс.Диск или URL)">
+                                <button id="loadUrlBtn" class="btn btn-secondary whitespace-nowrap">Загрузить</button>
+                        </div>
+                        
+
+
+                            <div class="flex gap-2">
+                                <button id="scanQrBtn" class="btn btn-secondary flex-1">
+                                    <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 013.75 9.375v-4.5zM3.75 14.625c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5a1.125 1.125 0 01-1.125-1.125v-4.5zM13.5 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 0113.5 9.375v-4.5z"/><path stroke-linecap="round" stroke-linejoin="round" d="M6.75 6.75h.75v.75h-.75v-.75zM6.75 16.5h.75v.75h-.75v-.75zM16.5 6.75h.75v.75h-.75v-.75zM13.5 13.5h.75v.75h-.75v-.75zM13.5 19.5h.75v.75h-.75v-.75zM19.5 13.5h.75v.75h-.75v-.75zM19.5 19.5h.75v.75h-.75v-.75zM16.5 16.5h.75v.75h-.75v-.75z"/></svg>
+                                    Сканировать QR
+                                </button>
+                            </div>
+
+                        <div class="space-y-3">
+                            <!-- Файл с диска не выбирается: задание загружается только по ссылке -->
+                        </div>
+                    </div>
+                    <div id="formulasStatus" class="hidden p-3 rounded-lg" style="background: var(--accent-dim)"><p class="text-sm text-center">Загружено формул: <span id="formulasCount" class="font-bold">0</span></p></div>
+
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="mainScreen" class="screen">
+        <div class="min-h-screen p-4 py-8">
+            <div class="max-w-3xl mx-auto">
+                <div class="mb-6 fade-in">
+                    <div class="flex justify-between items-center mb-4">
+                        <div><p class="text-sm" style="color: var(--muted)">Студент</p><p id="studentName" class="font-semibold"></p></div>
+                        <div class="text-center"><p class="text-sm" style="color: var(--muted)">Время</p><p id="timerDisplay" class="timer-display">00:00</p></div>
+                        <div class="text-right"><p class="text-sm" style="color: var(--muted)">Формула</p><p id="formulaCounter" class="font-semibold title-display"></p></div>
+                    </div>
+                    <div class="progress-bar"><div id="progressFill" class="progress-fill" style="width: 0%"></div></div>
+                </div>
+                <div class="card mb-6 fade-in stagger-1">
+                    <div class="formula-title-card">
+                        <p class="text-sm uppercase tracking-wider mb-2" style="color: var(--muted)">Соберите формулу</p>
+                        <h4 id="formulaName" class="formula-name-display"></h4>
+                        <p class="formula-hint">Расставьте фрагменты в правильном порядке</p>
+                        <div id="symbolsContainer" class="symbols-container" style="display: none;"></div>
+                    </div>
+                </div>
+                <div class="card mb-6 fade-in stagger-2">
+                    <p class="text-sm font-medium mb-3" style="color: var(--muted)">Ваш ответ (перетащите фрагменты)</p>
+                    <div id="dropZone" class="drop-zone"><p class="hint-text">Перетащите фрагменты сюда в правильном порядке</p></div>
+                </div>
+                <div class="card mb-6 fade-in stagger-3">
+                    <p class="text-sm font-medium mb-3" style="color: var(--muted)">Доступные фрагменты</p>
+                    <div id="fragmentsContainer" class="fragments-container"></div>
+                </div>
+                <div class="action-buttons fade-in stagger-4">
+                    <button id="resetBtn" class="btn btn-secondary"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99"/></svg>Сбросить</button>
+                    <button id="checkBtn" class="btn btn-primary" disabled><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5"/></svg>Проверить</button>
+                    <button id="checkBtnNext" class="btn btn-primary" ><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5l6 6m0 0l-6 6m6-6H4.5"/></svg>Дальше</button>
+                    <button id="finishBtn" class="btn btn-secondary" title="Перейти к последнему экрану — результату теста"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5.25 12.75l6 6 9-13.5M18 4.5l6 6m0 0l-6 6m6-6H4.5"/></svg>Завершить</button>
+
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="resultScreen" class="screen">
+        <div class="min-h-screen flex items-center justify-center p-4">
+            <div class="card max-w-2xl w-full text-center fade-in">
+                <h2 class="title-display text-3xl md:text-4xl font-bold mb-2">Результат</h2>
+                <!-- Единое окно результатов (shared/results.js): сводка, сохранение, разбор -->
+                <div id="mt3Results" class="text-left mb-6"></div>
+                <div id="submissionStatus" class="submission-status success" style="display: none;"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>Результаты отправлены</div>
+                <div class="flex gap-4 justify-center"><button id="restartBtn" class="btn btn-primary"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99"/></svg>Начать заново</button></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="qrModal" class="qr-modal">
+        <div class="qr-content">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="title-display text-xl font-bold">Сканирование QR</h3>
+                <button id="closeQrBtn" class="btn btn-secondary" style="padding: 0.5rem"><svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg></button>
+            </div>
+            <video id="qrVideo" playsinline></video>
+            <canvas id="qrCanvas" class="hidden"></canvas>
+            <p id="qrStatus" class="text-center mt-4" style="color: var(--muted)">Наведите камеру на QR-код</p>
+        </div>
+    </div>
+
+    <script src="js/latex-fragments.js"></script>
+    <script src="../shared/results.js?v=1"></script>
+    <script src="js/app.js?v=1"></script>
+</body>
+</html>
+
+
+
+
+
+
