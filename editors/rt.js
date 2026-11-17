@@ -518,7 +518,6 @@
         short: 'RE:AD',
         fileBase: 'reading_test',
         gistFilename: 'reading_test.xml',
-        taskApp: { baseUrl: 'https://tregubovvn.github.io/rt_v2/index.html', paramName: 'file' },
         serverType: 'ReadTest',
         rootTag: 'readingTest',
         matches: root => root === 'readingTest',

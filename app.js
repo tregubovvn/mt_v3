@@ -5,9 +5,13 @@
 
    Один интерфейс и одно ядро (файлы, сохранение, публикация, промпты, AI),
    три разных редактора по типу XML:
-     • rt — Reading Test (<readingTest>)   → тестирование в rt_v2
-     • mt — Moodle Quiz (<quiz>)           → тестирование в mt_v2
-     • ft — Formula Test (<formulas>)      → тестирование в ft
+     • rt — Reading Test (<readingTest>)   → тестирование test/rt
+     • mt — Moodle Quiz (<quiz>)           → тестирование test/mt
+     • ft — Formula Test (<formulas>)      → тестирование test/ft
+
+   Ссылка на опубликованное задание ведёт в единую точку входа тестирования
+   test/index.html?file=… — там один раз вводятся ФИО и группа, а тип задания
+   определяется по корню XML.
 
    Файлы и публикация — save_api/file-api.js, режимы — save_api/prompts-api.js.
    ========================================================================= */
@@ -348,6 +352,19 @@
 
     /* -------------------------------- Файлы -------------------------------- */
 
+    // Ссылка на опубликованное задание всегда ведёт в единую точку входа
+    // тестирования mt_v3: test/index.html?file=<XML>&флаги. Сама страница
+    // определяет тип по корню XML (readingTest / quiz / formulas) и открывает
+    // нужное приложение — отдельные ссылки на rt_v2 / mt_v2 / ft не нужны.
+    const TEST_ENTRY_APP = (() => {
+        const fallback = 'https://tregubovvn.github.io/mt_v3/test/index.html';
+        try {
+            return { baseUrl: new URL('test/index.html', location.href).href, paramName: 'file' };
+        } catch (e) {
+            return { baseUrl: fallback, paramName: 'file' };
+        }
+    })();
+
     function filesFor(typeId) {
         if (state.filesCache[typeId]) return state.filesCache[typeId];
         const adapter = window.MtV3Types.get(typeId);
@@ -355,7 +372,7 @@
             gistFilename: adapter.gistFilename,
             fileName: adapter.fileBase + '.xml',
             storagePrefix: 'mtV3_' + typeId,
-            taskApp: adapter.taskApp,
+            taskApp: TEST_ENTRY_APP,
             collectionFilename: 'prompts.md',
             autoSaveDebounceMs: 1500,
             validate: null,

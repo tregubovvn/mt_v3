@@ -413,7 +413,6 @@
         short: 'FORMULAS',
         fileBase: 'formula_test',
         gistFilename: 'formula_test.xml',
-        taskApp: { baseUrl: 'https://tregubovvn.github.io/ft/index.html', paramName: 'file' },
         serverType: 'FormulaTest',
         rootTag: 'formulas',
         matches: root => root === 'formulas',

@@ -17,6 +17,10 @@ https://tregubovvn.github.io/mt_v3/index.html
 | Moodle Quiz | `<quiz>` | вопросы multichoice / truefalse / shortanswer / numerical / description | `test/mt/index.html` |
 | Formula Test | `<formulas>` | формулы LaTeX, условные обозначения, предпросмотр и фрагменты | `test/ft/index.html` |
 
+Ссылка, которую редактор отдаёт после публикации («Ссылка на задание»), всегда
+ведёт в эту единую точку входа: `test/index.html?file=<XML>&<флаги>` — студент один
+раз вводит ФИО и группу, а тип задания определяется по корню XML.
+
 ## Что единое, а что разное
 
 **Единое (ядро `app.js`):**
