@@ -706,7 +706,6 @@
         short: 'MOODLE',
         fileBase: 'quiz',
         gistFilename: 'quiz.xml',
-        taskApp: { baseUrl: 'https://tregubovvn.github.io/mt_v2/index.html', paramName: 'name' },
         serverType: 'MoodleTest',
         rootTag: 'quiz',
         matches: root => root === 'quiz',

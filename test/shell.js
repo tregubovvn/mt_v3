@@ -199,6 +199,22 @@
         el.fio.focus();
     }
 
+    const ENGINE_FLAGS = ['checkmode', 'headershow', 'crushmode', 'randommode'];
+
+    // Флаги режимов приходят из ссылки на задание (их ставит редактор при
+    // публикации) — передаём их дальше в приложение тестирования.
+    function readFlags() {
+        const params = new URLSearchParams(location.search);
+        const out = {};
+        ENGINE_FLAGS.forEach(name => {
+            for (const [key, value] of params.entries()) {
+                if (key.toLowerCase() !== name) continue;
+                if (value === '' || ['true', '1', 'yes'].includes(value.toLowerCase())) out[name] = 'true';
+            }
+        });
+        return out;
+    }
+
     function startTest(event) {
         if (event) event.preventDefault();
 
@@ -221,6 +237,8 @@
             fio: fio,
             group: group,
         });
+        const flags = readFlags();
+        Object.keys(flags).forEach(name => query.set(name, flags[name]));
         location.href = engine.dir + '/index.html?' + query.toString();    }
 
     el.nameForm.addEventListener('submit', startTest);
