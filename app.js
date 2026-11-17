@@ -511,6 +511,8 @@
 
         const requestText = prompt + '\n\nXML-ЗАДАНИЕ:\n' + xml;
 
+        dsLastExtracted = '';
+        els.dsApplyBtn.hidden = true;
         setBusy(true, 'Отправка запроса в DeepSeek');
         aiController = new AbortController();
         try {
@@ -532,18 +534,19 @@
             const reply = data && data.choices && data.choices[0] && data.choices[0].message
                 ? data.choices[0].message.content : '';
             if (!reply) throw new Error('пустой ответ модели');
-            const extracted = extractXml(reply, state.adapter.rootTag);
-            const activeMode = state.prompts ? state.prompts.getActivePrompt() : null;
-            showDsReply(reply, extracted, activeMode ? activeMode.name : '—');
-            if (extracted) {
-                dsLastExtracted = extracted;
+            // Ответ заменяет содержимое XML-окна: одно окно, никаких доп. полей.
+            dsLastExtracted = extractXml(reply, state.adapter.rootTag);
+            els.xmlEditor.value = reply;
+            els.dsApplyBtn.hidden = !dsLastExtracted;
+            if (dsLastExtracted) {
                 toast('DeepSeek вернул XML — нажмите «Применить к редактору»');
-                setStatus('DeepSeek вернул XML');
+                setStatus('DeepSeek вернул XML — проверьте и примените');
             } else {
                 const preview = String(reply).replace(/\s+/g, ' ').trim();
                 const short = preview.length > 140 ? preview.slice(0, 140) + '…' : preview;
-                toast('В ответе нет <' + state.adapter.rootTag + '> — начало: «' + short + '». Ответ можно отредактировать и отправить снова', true);
-                setStatus('DeepSeek вернул не XML — ответ в панели ниже');
+                toast('В ответе нет <' + state.adapter.rootTag + '> — начало: «' + short +
+                    '». Отредактируйте ответ в XML-окне и нажмите ✨ DeepSeek ещё раз', true);
+                setStatus('DeepSeek вернул не XML — ответ в XML-окне');
             }
         } catch (e) {
             if (e && e.name === 'AbortError') {
@@ -562,42 +565,12 @@
     let aiController = null;
     let dsLastExtracted = '';
 
-    // Панель «Ответ DeepSeek» в XML-окне: одно окно для любого ответа модели.
-    // Сам запрос (промпт) здесь не показывается. Если в ответе есть XML —
-    // кнопка «Применить к редактору»; если нет — ответ можно отредактировать
-    // и отправить снова.
-    function showDsReply(reply, extracted, modeName) {
-        if (!els.dsPanel) return;
-        els.dsPanel.hidden = false;
-        els.dsPanel.open = true;
-        els.dsPanelMeta.textContent = 'режим «' + modeName + '» · ' + new Date().toLocaleTimeString('ru-RU');
-        els.dsReplyEdit.value = String(reply || '');
-        els.dsApplyBtn.hidden = !extracted;
-        els.dsRetryBtn.hidden = false;
-        els.dsApplyBtn.disabled = state.busy;
-        els.dsRetryBtn.disabled = state.busy;
-        if (!extracted) {
-            els.dsReplyEdit.focus();
-            els.dsReplyEdit.scrollTop = 0;
-        }
-    }
-
-    // Применить XML из ответа DeepSeek к редактору.
+    // Применить XML из ответа DeepSeek к редактору формы.
     function applyDsExtracted() {
         if (!dsLastExtracted) return;
         els.xmlEditor.value = dsLastExtracted;
+        els.dsApplyBtn.hidden = true;
         applyXml();
-    }
-
-    // Повторная отправка: отредактированный текст уходит в DeepSeek как новое задание.
-    function resendDsReply() {
-        const text = (els.dsReplyEdit.value || '').trim();
-        if (!text) {
-            toast('Поле ответа пусто — нечего отправлять', true);
-            els.dsReplyEdit.focus();
-            return;
-        }
-        askDeepSeek(text);
     }
 
     let busyTimer = null;
@@ -606,8 +579,6 @@
         const overlay = els.busyOverlay;
         overlay.classList.toggle('show', busy);
         if (els.btnAiCancel) els.btnAiCancel.disabled = !busy;
-        if (els.dsApplyBtn) els.dsApplyBtn.disabled = busy;
-        if (els.dsRetryBtn) els.dsRetryBtn.disabled = busy;
         if (busy) {
             const started = Date.now();
             els.busyText.textContent = text || 'Обработка…';
@@ -908,7 +879,6 @@
         els.btnPrompts.addEventListener('click', () => state.prompts.openDialog());
         els.btnAi.addEventListener('click', () => askDeepSeek());
         els.dsApplyBtn.addEventListener('click', applyDsExtracted);
-        els.dsRetryBtn.addEventListener('click', resendDsReply);
         els.btnAiCancel.addEventListener('click', () => {
             if (aiController) {
                 aiController.abort();
@@ -1058,7 +1028,7 @@
             'flCheck', 'flHeader', 'flCrush', 'flRandom',
             'gistModal', 'gistRef', 'btnGistLoad',
             'busyOverlay', 'busyText', 'busyTimer', 'btnAiCancel',
-            'dsPanel', 'dsPanelMeta', 'dsApplyBtn', 'dsRetryBtn', 'dsReplyEdit',
+            'dsApplyBtn',
         ].forEach(name => { els[name] = id(name); });
     }
 

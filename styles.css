@@ -637,37 +637,6 @@ body.resizing { cursor: col-resize; user-select: none; }
 .pa-root .pa-status { color: var(--fg-muted); }
 .pa-root .pa-status.error { color: var(--danger); }
 
-/* --------------------------- Запрос к DeepSeek --------------------------- */
-.ds-request {
-    margin: 0 12px 8px;
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    background: rgba(15, 23, 42, .35);
-    overflow: hidden;
-}
-.ds-request summary {
-    cursor: pointer; user-select: none;
-    padding: 6px 10px;
-    font-size: 12px; font-weight: 600;
-    color: var(--fg-muted);
-}
-.ds-request summary:hover { color: var(--fg); }
-.ds-panel-actions {
-    display: flex; gap: 8px; flex-wrap: wrap;
-    padding: 8px 12px;
-    border-top: 1px solid var(--border);
-}
-.ds-reply-edit {
-    display: block; width: 100%; box-sizing: border-box;
-    min-height: 170px; resize: vertical;
-    margin: 0; padding: 8px 12px;
-    border: 0; border-top: 1px solid var(--border);
-    background: var(--bg-card); color: var(--fg);
-    font: 12px/1.5 ui-monospace, Consolas, 'Liberation Mono', monospace;
-    outline: none;
-}
-.ds-reply-edit:focus { background: rgba(56, 189, 248, .06); }
-
 /* ------------------------------- Адаптивность ------------------------------- */
 
 @media (max-width: 1100px) {
