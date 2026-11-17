@@ -665,7 +665,18 @@ body.resizing { cursor: col-resize; user-select: none; }
     border-top: 1px solid var(--border);
     font-size: 12px; font-weight: 700;
     color: var(--fg-muted);
+    display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
 }
+.ds-reply-edit {
+    display: block; width: 100%; box-sizing: border-box;
+    min-height: 160px; resize: vertical;
+    margin: 0; padding: 8px 12px;
+    border: 0; border-top: 1px solid var(--border);
+    background: var(--bg-card); color: var(--fg);
+    font: 12px/1.5 ui-monospace, Consolas, 'Liberation Mono', monospace;
+    outline: none;
+}
+.ds-reply-edit:focus { background: rgba(56, 189, 248, .06); }
 
 /* ------------------------------- Адаптивность ------------------------------- */
 
