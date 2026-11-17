@@ -396,6 +396,8 @@
         files.setAutosave(state.settings.autosave !== false);
 
         files.on('status', event => setStatus(event.message));
+        // Правка содержимого снимает ссылку на задание и меняет статус публикации
+        files.on('content-change', () => { updatePublishInfo(); renderPublishLink(); });
         files.on('save', () => { state.dirty = false; updateSaveInfo(); });
         files.on('autosave', () => { state.dirty = false; updateSaveInfo(); });
         files.on('file-selected', () => updateSaveInfo());
@@ -404,6 +406,13 @@
             updatePublishInfo();
             renderPublishLink();
             toast('Опубликовано: ' + (event.rawUrl || event.url || ''));
+            // Единый лог публикаций: дата/время, вид задания, название, ссылка
+            appendPublishLog({
+                at: new Date().toISOString(),
+                type: adapter.label,
+                title: (els.pubDescription.value || '').trim() || adapter.title(state.editor.getModel()),
+                url: event.taskUrl || '',
+            });
         });
         files.on('publish-reset', () => {
             state.lastPublish = null;
@@ -435,9 +444,13 @@
     function updatePublishInfo() {
         const last = state.files ? state.files.getLastPublish() : null;
         state.lastPublish = last;
-        els.statusPublish.textContent = last
-            ? 'Опубликовано: ' + (last.target || '') + ' · ' + new Date(last.at).toLocaleTimeString()
-            : 'Не опубликовано';
+        let stale = false;
+        try { stale = !!(state.files && state.files.isPublishedStale && state.files.isPublishedStale()); } catch (e) { stale = false; }
+        els.statusPublish.textContent = !last
+            ? 'Не опубликовано'
+            : (stale
+                ? 'Изменено после публикации — нужна повторная публикация'
+                : 'Опубликовано: ' + (last.target || '') + ' · ' + new Date(last.at).toLocaleTimeString());
     }
 
     /* ------------------------------- Промпты ------------------------------- */
@@ -655,11 +668,224 @@
     }
     /* ------------------------------ Публикация ------------------------------ */
 
+    /* --------- Единый лог публикаций (Gist + локальный кэш) ---------
+       Файл publish_log.json лежит в том же Gist, что и промпты:
+       запись — { at, type, title, url } (дата/время, вид задания, название, ссылка).
+       Без токена лог ведётся локально и синхронизируется после ввода токена. */
+    const PUBLISH_LOG_GIST = '2f9804a3ad5439b1bb60957b8969826a';
+    const PUBLISH_LOG_FILE = 'publish_log.json';
+    const PUBLISH_LOG_STORAGE = 'mtV3_publishLog';
+    const PUBLISH_LOG_LIMIT = 200;
+    let publishLogLoading = false;
+
+    function ghToken() {
+        return String(state.settings.gh || '').trim();
+    }
+
+    async function ghApi(path, options) {
+        const headers = Object.assign({ 'Accept': 'application/vnd.github+json' }, (options && options.headers) || {});
+        const token = ghToken();
+        if (token) headers['Authorization'] = 'Bearer ' + token;
+        const resp = await fetch('https://api.github.com' + path, Object.assign({}, options, { headers }));
+        if (!resp.ok) throw new Error('GitHub API ' + resp.status);
+        return resp.json();
+    }
+
+    function readCachedLog() {
+        try {
+            const list = JSON.parse(localStorage.getItem(PUBLISH_LOG_STORAGE) || '[]');
+            return Array.isArray(list) ? list : [];
+        } catch (e) {
+            return [];
+        }
+    }
+
+    function cacheLog(entries) {
+        try { localStorage.setItem(PUBLISH_LOG_STORAGE, JSON.stringify(entries)); } catch (e) { /* ignore */ }
+    }
+
+    async function fetchPublishLog() {
+        const data = await ghApi('/gists/' + PUBLISH_LOG_GIST);
+        const file = data.files && data.files[PUBLISH_LOG_FILE];
+        if (!file) return null;
+        let content = file.content;
+        if (typeof content !== 'string' && file.raw_url) {
+            const resp = await fetch(file.raw_url);
+            if (!resp.ok) throw new Error('HTTP ' + resp.status + ' при чтении лога');
+            content = await resp.text();
+        }
+        const list = JSON.parse(content || '[]');
+        return Array.isArray(list) ? list : [];
+    }
+
+    async function savePublishLog(entries) {
+        cacheLog(entries);
+        if (!ghToken()) throw new Error('нет GitHub Token — лог сохранён только в этом браузере');
+        await ghApi('/gists/' + PUBLISH_LOG_GIST, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ files: { [PUBLISH_LOG_FILE]: { content: JSON.stringify(entries, null, 2) } } }),
+        });
+    }
+
+    async function appendPublishLog(entry) {
+        if (!entry || !entry.url) return;
+        let entries = readCachedLog();
+        try {
+            const remote = await fetchPublishLog();
+            if (remote && remote.length) entries = remote;
+        } catch (e) { /* нет сети/токена — пишем из кэша */ }
+
+        entries.unshift(entry);
+        const trimmed = entries.slice(0, PUBLISH_LOG_LIMIT);
+        try {
+            await savePublishLog(trimmed);
+        } catch (e) {
+            toast('Лог публикаций: ' + e.message, true);
+        }
+        renderPublishLog(trimmed);
+    }
+
+    async function refreshPublishLog() {
+        if (publishLogLoading) return;
+        publishLogLoading = true;
+        renderPublishLog(readCachedLog());
+        try {
+            const remote = await fetchPublishLog();
+            if (remote) {
+                cacheLog(remote);
+                renderPublishLog(remote);
+            }
+        } catch (e) {
+            els.pubLogList.insertAdjacentHTML('beforeend',
+                '<p class="hint">Лог из Gist не загружен (' + escapeHtml(e.message) + ') — показан локальный.</p>');
+        } finally {
+            publishLogLoading = false;
+        }
+    }
+
+    function formatLogDate(iso) {
+        const d = new Date(iso);
+        if (isNaN(d.getTime())) return '';
+        return d.toLocaleString('ru-RU', {
+            day: '2-digit', month: '2-digit', year: 'numeric',
+            hour: '2-digit', minute: '2-digit',
+        });
+    }
+
+    function renderPublishLog(entries) {
+        const box = els.pubLogList;
+        if (!box) return;
+        box.innerHTML = '';
+
+        const list = Array.isArray(entries) ? entries : [];
+        if (!list.length) {
+            const empty = document.createElement('p');
+            empty.className = 'hint';
+            empty.textContent = 'Пока нет опубликованных заданий.';
+            box.appendChild(empty);
+            return;
+        }
+
+        list.forEach(entry => {
+            const row = document.createElement('div');
+            row.className = 'pub-log-row';
+
+            const info = document.createElement('div');
+            info.className = 'pub-log-info';
+
+            const title = document.createElement('div');
+            title.className = 'pub-log-title';
+            title.textContent = entry.title || 'Без названия';
+            info.appendChild(title);
+
+            const meta = document.createElement('div');
+            meta.className = 'pub-log-meta';
+            meta.textContent = [formatLogDate(entry.at), entry.type].filter(Boolean).join(' · ');
+            info.appendChild(meta);
+
+            if (entry.url) {
+                const link = document.createElement('a');
+                link.className = 'pub-log-link';
+                link.href = entry.url;
+                link.target = '_blank';
+                link.rel = 'noopener';
+                link.textContent = entry.url;
+                info.appendChild(link);
+            }
+
+            row.appendChild(info);
+
+            if (entry.url) {
+                const edit = document.createElement('button');
+                edit.type = 'button';
+                edit.className = 'btn btn-sm';
+                edit.textContent = '✎';
+                edit.title = 'Открыть XML этого задания для правки';
+                edit.addEventListener('click', () => loadPublishedTask(entry.url));
+                row.appendChild(edit);
+            }
+
+            box.appendChild(row);
+        });
+    }
+
+    /**
+     * Загрузка XML из опубликованного задания: в ссылке задания лежит
+     * параметр ?file=<raw-ссылка на XML> — берём его и читаем сам XML.
+     * Возвращает true, если ссылка оказалась ссылкой задания.
+     */
+    function fileUrlFromTaskLink(ref) {
+        try {
+            const u = new URL(ref, location.href);
+            const value = u.searchParams.get('file') || u.searchParams.get('xml');
+            if (!value) return '';
+            return new URL(value, u.href).href;
+        } catch (e) {
+            return '';
+        }
+    }
+
+    function fileNameFromUrl(url) {
+        try {
+            const name = new URL(url).pathname.split('/').pop() || '';
+            return name || 'task.xml';
+        } catch (e) {
+            return 'task.xml';
+        }
+    }
+
+    async function loadXmlFromUrl(url, sourceLabel) {
+        const resp = await fetch(url);
+        if (!resp.ok) throw new Error('HTTP ' + resp.status + ' при загрузке XML');
+        const text = await resp.text();
+        if (!text.trim()) throw new Error('файл пуст');
+        applyLoadedContent(text, fileNameFromUrl(url), sourceLabel);
+    }
+
+    async function loadPublishedTask(ref) {
+        const fileUrl = fileUrlFromTaskLink(ref);
+        if (!fileUrl) {
+            toast('В ссылке задания нет параметра ?file=…', true);
+            return false;
+        }
+        try {
+            await loadXmlFromUrl(fileUrl, 'задание');
+            closeModal('publishModal');
+            closeModal('gistModal');
+            return true;
+        } catch (e) {
+            toast('Загрузка задания: ' + e.message, true);
+            return false;
+        }
+    }
+
     function openPublish() {
         if (!state.adapter) return;
         els.pubDescription.value = state.adapter.title(state.editor.getModel());
         els.pubStatus.textContent = '';
         renderPublishLink();
+        refreshPublishLog();
         openModal('publishModal');
     }
 
@@ -696,10 +922,19 @@
     function renderPublishLink() {
         if (!state.files) return;
         const last = state.files.getLastPublish();
-        const url = last ? state.files.getTaskUrl(currentFlags()) : '';
+
+        // Задание изменилось после публикации — ссылка снимается,
+        // нужна повторная публикация (старый адрес уже неактуален)
+        let stale = false;
+        try { stale = typeof state.files.isPublishedStale === 'function' && state.files.isPublishedStale(); }
+        catch (e) { stale = false; }
+
+        const url = (last && !stale) ? state.files.getTaskUrl(currentFlags()) : '';
         els.taskUrl.value = url || '';
         els.openTask.href = url || '#';
         els.openTask.classList.toggle('disabled', !url);
+        els.btnCopyTask.disabled = !url;
+        if (els.pubStale) els.pubStale.hidden = !(last && stale);
     }
 
     /* ------------------------------ Загрузка ------------------------------ */
@@ -749,13 +984,28 @@
 
     async function loadFromGist() {
         const ref = els.gistRef.value.trim();
-        if (!ref) { toast('Вставьте ссылку на Gist или ID', true); return; }
+        if (!ref) { toast('Вставьте ссылку на задание, Gist или ID', true); return; }
+
+        // 1. Ссылка на опубликованное задание — берём из неё ?file=<XML>
+        if (fileUrlFromTaskLink(ref)) {
+            await loadPublishedTask(ref);
+            return;
+        }
+
         try {
+            // 2. Прямая ссылка на XML-файл
+            if (/^https?:\/\//i.test(ref) && /\.xml(\?|#|$)/i.test(ref)) {
+                await loadXmlFromUrl(ref, 'ссылка');
+                closeModal('gistModal');
+                return;
+            }
+
+            // 3. Gist (страница, raw-ссылка или ID)
             const result = await state.files.loadFromGist(ref);
             closeModal('gistModal');
             applyLoadedContent(result.content, result.fileName, 'Gist');
         } catch (e) {
-            toast('Загрузка из Gist: ' + e.message, true);
+            toast('Загрузка: ' + e.message, true);
         }
     }
 
@@ -992,6 +1242,7 @@
         els.pubGitverse.addEventListener('click', () => runPublish('gitverse'));
         els.pubServer.addEventListener('click', () => runPublish('server'));
         els.btnCopyTask.addEventListener('click', () => copyText(els.taskUrl.value));
+        if (els.btnPubLogRefresh) els.btnPubLogRefresh.addEventListener('click', () => refreshPublishLog());
         [els.flCheck, els.flHeader, els.flCrush, els.flRandom].forEach(box => {
             box.addEventListener('change', renderPublishLink);
         });
@@ -1041,7 +1292,7 @@
             'setAutosave', 'btnSaveSettings',
             'btnPreview', 'previewPane', 'pvPrev', 'pvNext', 'pvCounter', 'pvLabel', 'pvShowAnswers', 'pvClose', 'pvStage',
             'publishModal', 'pubDescription', 'pubGist', 'pubGitverse', 'pubServer', 'pubStatus',
-            'taskUrl', 'btnCopyTask', 'openTask',
+            'taskUrl', 'btnCopyTask', 'openTask', 'pubStale', 'pubLogList', 'btnPubLogRefresh',
             'flCheck', 'flHeader', 'flCrush', 'flRandom',
             'gistModal', 'gistRef', 'btnGistLoad',
             'busyOverlay', 'busyText', 'busyTimer', 'btnAiCancel',
