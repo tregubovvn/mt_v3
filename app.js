@@ -456,15 +456,33 @@
 
     /* --------------------------------- AI --------------------------------- */
 
-    function extractXml(text) {
-        if (!state.adapter) return '';
-        const root = state.adapter.rootTag;
-        let content = String(text || '');
-        const fenced = content.match(/```(?:xml)?\s*([\s\S]*?)```/i);
-        if (fenced) content = fenced[1];
-        const start = content.indexOf('<' + root);
-        const end = content.lastIndexOf('</' + root + '>');
-        if (start !== -1 && end !== -1) return content.slice(start, end + root.length + 3).trim();
+    // Извлечение XML задания из ответа модели. Корневой тег ищем без учёта
+    // регистра: сначала в код-блоках ``` … ``` (их может быть несколько —
+    // берём первый блок с нужным корнем), затем по всему ответу.
+    function extractXml(text, root) {
+        const content = String(text || '');
+        if (!root) return '';
+        const openTag = ('<' + root).toLowerCase();
+        const closeTag = ('</' + root + '>').toLowerCase();
+
+        const blocks = [];
+        const re = /```[^\n]*\n?([\s\S]*?)```/gi;
+        let m;
+        while ((m = re.exec(content))) blocks.push(m[1]);
+
+        const candidates = blocks.concat([content]);
+        for (const block of candidates) {
+            const low = block.toLowerCase();
+            const start = low.indexOf(openTag);
+            if (start === -1) continue;
+            const end = low.lastIndexOf(closeTag);
+            if (end === -1 || end < start) continue;
+            let out = block.slice(start, end + closeTag.length).trim();
+            // Корневые теги приводим к каноническому регистру (<ReadingTest> → <readingTest>):
+            // out начинается с открывающего тега и заканчивается закрывающим.
+            out = '<' + root + out.substring(openTag.length, out.length - closeTag.length) + '</' + root + '>';
+            return out;
+        }
         return '';
     }
 
@@ -491,6 +509,10 @@
             return;
         }
 
+        const activeMode = state.prompts ? state.prompts.getActivePrompt() : null;
+        const requestText = prompt + '\n\nXML-ЗАДАНИЕ:\n' + xml;
+        showDsRequest(requestText, activeMode ? activeMode.name : '—');
+
         setBusy(true, 'Отправка запроса в DeepSeek');
         aiController = new AbortController();
         try {
@@ -501,7 +523,7 @@
                 body: JSON.stringify({
                     model: 'deepseek-chat',
                     stream: false,
-                    messages: [{ role: 'user', content: prompt + '\n\nXML-ЗАДАНИЕ:\n' + xml }],
+                    messages: [{ role: 'user', content: requestText }],
                 }),
             });
             let data = null;
@@ -512,8 +534,14 @@
             const reply = data && data.choices && data.choices[0] && data.choices[0].message
                 ? data.choices[0].message.content : '';
             if (!reply) throw new Error('пустой ответ модели');
-            const extracted = extractXml(reply);
-            if (!extracted) throw new Error('в ответе нет <' + state.adapter.rootTag + '>');
+            showDsReply(reply);
+            const extracted = extractXml(reply, state.adapter.rootTag);
+            if (!extracted) {
+                const preview = String(reply).replace(/\s+/g, ' ').trim();
+                const short = preview.length > 160 ? preview.slice(0, 160) + '…' : preview;
+                throw new Error('в ответе нет <' + state.adapter.rootTag + '> — начало ответа: «' + short +
+                    '». Полный ответ — в панели «Запрос к DeepSeek»');
+            }
             els.xmlEditor.value = extracted;
             setStatus('Ответ DeepSeek применён');
             applyXml();
@@ -532,6 +560,25 @@
     }
 
     let aiController = null;
+
+    // Панель «Запрос к DeepSeek» в XML-окне: какой запрос был отправлен и что вернула модель.
+    function showDsRequest(text, modeName) {
+        if (!els.dsRequest) return;
+        els.dsRequest.hidden = false;
+        els.dsRequest.open = true;
+        els.dsRequestMeta.textContent = 'режим «' + modeName + '» · ' + new Date().toLocaleTimeString('ru-RU');
+        els.dsRequestText.textContent = text;
+        els.dsReplyTitle.hidden = true;
+        els.dsReplyText.hidden = true;
+        els.dsReplyText.textContent = '';
+    }
+
+    function showDsReply(reply) {
+        if (!els.dsReplyText) return;
+        els.dsReplyTitle.hidden = false;
+        els.dsReplyText.hidden = false;
+        els.dsReplyText.textContent = String(reply || '').trim().slice(0, 2000);
+    }
 
     let busyTimer = null;
     function setBusy(busy, text) {
@@ -987,6 +1034,7 @@
             'flCheck', 'flHeader', 'flCrush', 'flRandom',
             'gistModal', 'gistRef', 'btnGistLoad',
             'busyOverlay', 'busyText', 'busyTimer', 'btnAiCancel',
+            'dsRequest', 'dsRequestMeta', 'dsRequestText', 'dsReplyTitle', 'dsReplyText',
         ].forEach(name => { els[name] = id(name); });
     }
 
