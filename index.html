@@ -18,7 +18,7 @@
         };
     </script>
     <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js"></script>
-    <link rel="stylesheet" href="styles.css?v=11">
+    <link rel="stylesheet" href="styles.css?v=12">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
 </head>
 <body>
@@ -57,14 +57,15 @@
             <button type="button" class="btn btn-sm btn-ai" id="btnAi" title="Отправить промпт и XML в DeepSeek">✨ DeepSeek</button>
             <button type="button" class="btn btn-sm" id="btnApply" disabled title="Разобрать XML и применить к редактору (Ctrl+Enter)">Применить ▶</button>
         </div>
-        <details class="ds-request" id="dsRequest" hidden>
-            <summary>📤 Запрос к DeepSeek — <span id="dsRequestMeta"></span></summary>
-            <pre class="ds-request-text" id="dsRequestText"></pre>
-            <div class="ds-reply-title" id="dsReplyTitle" hidden>Ответ модели — можно отредактировать и отправить снова:
+        <details class="ds-request" id="dsPanel" hidden>
+            <summary>✨ Ответ DeepSeek — <span id="dsPanelMeta"></span></summary>
+            <div class="ds-panel-actions">
+                <button type="button" class="btn btn-sm btn-primary" id="dsApplyBtn" hidden>✔ Применить к редактору</button>
                 <button type="button" class="btn btn-sm" id="dsRetryBtn" hidden>🔁 Отправить в DeepSeek ещё раз</button>
             </div>
             <textarea class="ds-reply-edit" id="dsReplyEdit" hidden spellcheck="false"
-                placeholder="Здесь будет ответ модели. Поправьте текст (например, ответьте на вопрос модели) и нажмите «Отправить в DeepSeek ещё раз»."></textarea>
+                placeholder="Здесь появится ответ DeepSeek. Если это XML — нажмите «Применить к редактору»; если нет — отредактируйте текст и отправьте снова."></textarea>
+        </details>
         </details>
         <div class="xml-wrap">
             <textarea id="xmlEditor" class="xml-editor" spellcheck="false" aria-label="XML задания"
@@ -257,6 +258,6 @@
 <script src="editors/mt.js?v=9"></script>
 <script src="editors/ft.js?v=9"></script>
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
-<script src="app.js?v=11"></script>
+<script src="app.js?v=12"></script>
 </body>
 </html>
