@@ -154,10 +154,23 @@
             if (input) input.focus();
             return;
         }
-        if (!/^\d{4,}$/.test(studentId)) {
-            setStatus('ИД должен состоять из цифр (не менее 4)', 'error');
+        // ИД может быть и числом (студенческий билет), и строкой вида STU001
+        if (!/^[A-Za-zА-Яа-я0-9_-]{3,}$/.test(studentId)) {
+            setStatus('ИД: буквы/цифры без пробелов, не короче 3 символов', 'error');
             if (input) input.focus();
             return;
+        }
+
+        // Браузеры разрешают window.open только из «прямого» действия пользователя,
+        // поэтому вкладку с оценками открываем сразу, а адрес с ИД подставляем
+        // после успешного сохранения: student.html?id=<ИД>.
+        const gradesWindow = window.open('about:blank', '_blank');
+        if (gradesWindow) {
+            try {
+                gradesWindow.document.title = 'Оценки';
+                gradesWindow.document.body.style.cssText = 'font:14px sans-serif; padding:24px; color:#334155';
+                gradesWindow.document.body.textContent = 'Сохранение результата…';
+            } catch (e) { /* кросс-домен не мешает — заполним позже */ }
         }
 
         setBusy(true);
@@ -172,13 +185,36 @@
                 date_time: new Date().toISOString(),
             });
             try { localStorage.setItem(current.save.idKey || 'mt3StudentId', studentId); } catch (e) { /* ignore */ }
-            setStatus('✓ Результат сохранён. Открываю оценки…', 'ok');
+
+            const gradesUrl = studentPageUrl(studentId);
+            if (gradesWindow && !gradesWindow.closed) {
+                gradesWindow.location.href = gradesUrl;
+                setStatus('✓ Результат сохранён. Все оценки открыты в новой вкладке.', 'ok');
+            } else {
+                // Вкладку заблокировал браузер — даём ссылку, не уводя со результатов
+                const box = document.getElementById('mt3rSaveStatus');
+                if (box) {
+                    box.className = 'mt3r-status ok';
+                    box.textContent = '✓ Результат сохранён. ';
+                    const link = document.createElement('a');
+                    link.href = gradesUrl;
+                    link.target = '_blank';
+                    link.rel = 'noopener';
+                    link.textContent = 'Посмотреть все оценки';
+                    box.appendChild(link);
+                }
+            }
             setBusy(false);
-            window.open(TRACKER_STUDENT_PAGE, '_blank');
         } catch (err) {
+            if (gradesWindow && !gradesWindow.closed) gradesWindow.close();  // не оставляем пустую вкладку
             setStatus(err.message || 'Не удалось сохранить результат', 'error');
             setBusy(false);
         }
+    }
+
+    // Страница оценок студента: без ?id= tracker пишет «Не указан ID студента в URL»
+    function studentPageUrl(studentId) {
+        return TRACKER_STUDENT_PAGE + '?id=' + encodeURIComponent(String(studentId || '').trim());
     }
 
     // --- Публичный API ---
