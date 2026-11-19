@@ -1,4 +1,46 @@
-/* Единое окно результатов для всех видов тестирования (rt · mt · ft) */
+/* Единое окно результатов для всех видов тестирования (rt · mt · ft).
+   Светлая тема: результат должен читаться на светлом фоне, без тёмных карточек. */
+
+/* Сам экран результатов тоже светлый (id есть в каждом приложении тестирования) */
+#screen-result.visible,
+#resultsSection:not(.hidden),
+#resultScreen.active {
+    background: #f1f5f9 !important;
+    color: #0f172a !important;
+}
+
+/* Заголовки приложений на светлом фоне — тёмные */
+#screen-result.visible h2,
+#screen-result.visible h3,
+#resultsSection:not(.hidden) h2,
+#resultsSection:not(.hidden) h3,
+#resultScreen.active h2,
+#resultScreen.active h3 {
+    color: #0f172a !important;
+}
+
+/* Кнопки на экране результатов: обычные — светлые, главная — акцент */
+#resultsSection:not(.hidden) .btn,
+#resultScreen.active .btn {
+    background: #ffffff !important;
+    background-image: none !important;
+    border-color: #cbd5e1 !important;
+    color: #0f172a !important;
+}
+
+#resultsSection:not(.hidden) .btn-primary,
+#resultScreen.active .btn-primary,
+#resultsSection:not(.hidden) .btn-success {
+    background: #0284c7 !important;
+    background-image: none !important;
+    border-color: #0284c7 !important;
+    color: #ffffff !important;
+}
+
+#resultsSection:not(.hidden) .link-btn,
+#resultScreen.active .link-btn {
+    color: #0284c7 !important;
+}
 
 .mt3r-host {
     display: block;
@@ -8,19 +50,20 @@
 .mt3r-block {
     margin: 0 0 16px;
     padding: 16px 18px;
-    border: 1px solid #334155;
+    border: 1px solid #e2e8f0;
     border-radius: 12px;
-    background: #1e293b;
-    color: #e2e8f0;
+    background: #ffffff;
+    color: #0f172a;
     text-align: left;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, .06);
 }
 
 .mt3r-row {
     display: flex;
     flex-wrap: wrap;
     gap: 6px;
-    padding: 6px 0;
-    border-bottom: 1px dashed rgba(148, 163, 184, .18);
+    padding: 7px 0;
+    border-bottom: 1px solid #f1f5f9;
     font-size: 15px;
     line-height: 1.45;
 }
@@ -28,24 +71,27 @@
 .mt3r-row:last-child { border-bottom: 0; }
 
 .mt3r-label {
-    color: #94a3b8;
+    color: #64748b;
     font-weight: 600;
 }
 
-.mt3r-value { font-weight: 600; }
+.mt3r-value {
+    color: #0f172a;
+    font-weight: 600;
+}
 
 .mt3r-title {
     margin: 0 0 6px;
     font-size: 16px;
     font-weight: 700;
-    color: #e2e8f0;
+    color: #0f172a;
 }
 
 .mt3r-note {
     margin: 0 0 10px;
     font-size: 13px;
     line-height: 1.5;
-    color: #94a3b8;
+    color: #64748b;
 }
 
 .mt3r-input {
@@ -54,16 +100,18 @@
     margin: 4px 0 10px;
     padding: 10px 12px;
     border-radius: 10px;
-    border: 1px solid #334155;
-    background: #0f172a;
-    color: #e2e8f0;
+    border: 1px solid #cbd5e1;
+    background: #ffffff;
+    color: #0f172a;
     font-size: 15px;
     outline: none;
 }
 
+.mt3r-input::placeholder { color: #94a3b8; }
+
 .mt3r-input:focus {
-    border-color: #38bdf8;
-    box-shadow: 0 0 0 3px rgba(56, 189, 248, .15);
+    border-color: #0284c7;
+    box-shadow: 0 0 0 3px rgba(2, 132, 199, .15);
 }
 
 .mt3r-btn {
@@ -72,38 +120,40 @@
     gap: 6px;
     padding: 11px 16px;
     border-radius: 10px;
-    border: 1px solid #38bdf8;
-    background: #38bdf8;
-    color: #082f49;
+    border: 1px solid #0284c7;
+    background: #0284c7;
+    color: #ffffff;
     font-size: 14px;
     font-weight: 700;
     cursor: pointer;
 }
 
-.mt3r-btn:hover:not(:disabled) { background: #7dd3fc; border-color: #7dd3fc; }
+.mt3r-btn:hover:not(:disabled) { background: #0369a1; border-color: #0369a1; }
 .mt3r-btn:disabled { opacity: .6; cursor: not-allowed; }
 
 .mt3r-status {
     margin-top: 10px;
     font-size: 13px;
-    color: #94a3b8;
+    color: #64748b;
 }
 
-.mt3r-status.error { color: #f87171; }
-.mt3r-status.ok { color: #34d399; }
+.mt3r-status a { color: #0284c7; font-weight: 600; }
+
+.mt3r-status.error { color: #b91c1c; }
+.mt3r-status.ok { color: #047857; }
 
 .mt3r-item {
     margin-top: 10px;
     padding: 10px 12px;
     border-radius: 10px;
-    background: rgba(16, 185, 129, .08);
-    border: 1px solid rgba(16, 185, 129, .28);
+    background: #ecfdf5;
+    border: 1px solid #a7f3d0;
 }
 
 .mt3r-item-status {
     font-size: 12px;
     font-weight: 700;
-    color: #34d399;
+    color: #047857;
     margin-bottom: 4px;
 }
 
@@ -111,10 +161,11 @@
     font-size: 14px;
     line-height: 1.5;
     margin-bottom: 4px;
+    color: #0f172a;
 }
 
 .mt3r-answer {
     font-size: 14px;
     line-height: 1.5;
-    color: #cbd5e1;
+    color: #334155;
 }

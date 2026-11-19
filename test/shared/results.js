@@ -41,7 +41,7 @@
         rows.push(['Оценка', (p.grade || '—') + ' (' + (GRADE_NAMES[p.grade] || '—') + '), ' +
             (p.percent == null ? '—' : p.percent) + '% правильных ответов']);
         rows.push(['Тема', p.topic || '—']);
-        rows.push(['Начало теста', (p.startStr || '—') + ' Окончание теста: ' + (p.endStr || '') ]);
+        rows.push(['Начало теста', (p.startStr || '—') + ' — ' + (p.endStr || '—')]);
         rows.push(['Затраченное время', p.timeStr || '—']);
         (p.rows || []).forEach(r => rows.push(r));
         return rows;
